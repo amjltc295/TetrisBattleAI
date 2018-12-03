@@ -1,4 +1,4 @@
-## Tetirs Battle
+## Tetris Battle
 
 Final project for Introduction to Artificial Intellegence
 
