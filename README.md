@@ -24,6 +24,8 @@ source activate AI_Intro_Final
 
 Please follow the [Github Flow](https://guides.github.com/introduction/flow/) in this project.
 
+In short, you have to open a new brach for each new feature. If the feature is done, you have to send Pull Request for others to review your code.
+
 
 ## Coding Style
 
