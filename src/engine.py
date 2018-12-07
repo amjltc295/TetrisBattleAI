@@ -1,5 +1,3 @@
-#from __future__ import print_function
-
 import numpy as np
 import random
 
@@ -64,6 +62,7 @@ def rotate_right(shape, anchor, board):
     new_shape = rotated(shape, cclk=True)
     return (shape, anchor) if is_occupied(new_shape, anchor, board) else (new_shape, anchor)
 
+
 def idle(shape, anchor, board):
     return (shape, anchor)
 
@@ -94,6 +93,10 @@ class TetrisEngine:
         self.shape = None
         self.n_deaths = 0
 
+        # states
+        self.total_cleared_lines = 0
+        self.bomb_lines = 0
+
         # used for generating shapes
         self._shape_counts = [0] * len(shapes)
 
@@ -112,9 +115,7 @@ class TetrisEngine:
 
     def _new_piece(self):
         # Place randomly on x-axis with 2 tiles padding
-        #x = int((self.width/2+1) * np.random.rand(1,1)[0,0]) + 2
         self.anchor = (self.width / 2, 0)
-        #self.anchor = (x, 0)
         self.shape = self._choose_shape()
 
     def _has_dropped(self):
@@ -152,12 +153,14 @@ class TetrisEngine:
         # Update time and reward
         self.time += 1
         reward = self.valid_action_count()
-        #reward = 1
 
         done = False
+        cleared_lines = 0
         if self._has_dropped():
             self._set_piece(True)
-            reward += 10 * self._clear_lines()
+            cleared_lines = self._clear_lines()
+            self.total_cleared_lines += cleared_lines
+            reward += cleared_lines * 10
             if np.any(self.board[:, 0]):
                 self.clear()
                 self.n_deaths += 1
@@ -169,13 +172,14 @@ class TetrisEngine:
         self._set_piece(True)
         state = np.copy(self.board)
         self._set_piece(False)
-        return state, reward, done
+        return state, reward, done, cleared_lines
 
     def clear(self):
         self.time = 0
         self.score = 0
         self._new_piece()
         self.board = np.zeros_like(self.board)
+        self.bomb_lines = 0
 
         return self.board
 
@@ -192,3 +196,6 @@ class TetrisEngine:
         s += '\no' + '-' * self.width + 'o'
         self._set_piece(False)
         return s
+
+    def receive_bomb_lines(self, bomb_lines):
+        self.bomb_lines += bomb_lines
