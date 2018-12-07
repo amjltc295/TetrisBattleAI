@@ -1,13 +1,15 @@
 import curses
+import sys
 import numpy as np
 from engine import TetrisEngine
 
-
-def play_game():
+def play_game(stdout):
     # Store play information
     db = []
+
     # Initial rendering
-    stdscr.addstr(str(env))
+    if stdout == "console":
+        stdscr.addstr(str(env))
 
     done = False
     # Global action
@@ -41,10 +43,13 @@ def play_game():
         state, reward, done, cleared_lines = env.step(action)
         db.append((state, reward, done, action))
 
-        # Render
-        stdscr.clear()
-        stdscr.addstr(str(env))
-        stdscr.addstr('reward: ' + str(reward))
+        if stdout == "console":
+            # Render
+            stdscr.clear()
+            stdscr.addstr(str(env))
+            stdscr.addstr('reward: ' + str(reward))
+        # elif stdout == "gui": TODO
+
 
     return db
 
@@ -87,6 +92,12 @@ if __name__ == '__main__':
     # Curses standard screen
     stdscr = curses.initscr()
 
+    # Console input: output to "console" or "gui"
+    stdout = sys.argv[1]
+    if stdout != "console" or stdout != "gui":
+        print('First parameter must be either "gui" or "console"')
+        exit(10)
+
     # Init environment
     width, height = 10, 20  # standard tetris friends rules
     env = TetrisEngine(width, height)
@@ -94,9 +105,11 @@ if __name__ == '__main__':
     # Play games on repeat
     while True:
         init()
-        stdscr.clear()
+        if stdout == "console":
+            stdscr.clear()
+        # if stdout == "gui": TODO
         env.clear()
-        db = play_game()
+        db = play_game(stdout)
 
         # Return to terminal
         terminate()
