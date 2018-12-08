@@ -43,7 +43,14 @@ class GlobalEngine:
         for i in range(self.player_num):
             # Initial rendering
             stdscr.addstr(str(self.engines[i]))
-            self.engine_states[i] = INIT_ENGINE_STATE.copy()
+            self.engine_states[i] = {
+                "KO": 0,
+                "reward": 0,
+                "lines_sent": 0,
+                "hold_block": None,
+                "holded": False,
+                "bomb_lines": 0
+            }
             # Initialize dbs
             dbs[i] = []
             # Global action
@@ -74,13 +81,15 @@ class GlobalEngine:
                 # Game step
                 state, reward, done, cleared_lines = engine.step(action)
                 self.engine_states[idx]['lines_sent'] += cleared_lines
-                for other_idx, other_engine in self.engines.items():
-                    if other_idx != idx:
-                        other_engine.receive_bomb_lines(cleared_lines)
-                        self.engine_states[other_idx]['bomb_lines'] = other_engine.bomb_lines
+                if cleared_lines > 0:
+                    for other_idx, other_engine in self.engines.items():
+                        if other_idx != idx:
+                            other_engine.receive_bomb_lines(cleared_lines)
+                            self.engine_states[other_idx]['bomb_lines'] = other_engine.bomb_lines
+                            if not other_engine.is_alive():
+                                self.engine_states[idx]['KO'] += 1
 
                 self.engine_states[idx]['reward'] += reward
-                self.engine_states[idx]['KO'] += int(done)
                 dbs[idx].append((state, reward, done, action))
 
                 # Render
