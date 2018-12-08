@@ -119,7 +119,7 @@ class TetrisEngine:
 
     def _new_piece(self):
         # Place randomly on x-axis with 2 tiles padding
-        self.anchor = (self.width / 2, 0)
+        self.anchor = (self.width / 2, 1)
         self.shape = self._choose_shape()
 
     def _has_dropped(self):
@@ -159,7 +159,8 @@ class TetrisEngine:
         cleared_lines = 0
         if self.drop_count == self.step_num_to_drop or action == 2:
             self.drop_count = 0
-            self.shape, self.anchor = soft_drop(self.shape, self.anchor, self.board)
+            if action != 3:
+                self.shape, self.anchor = soft_drop(self.shape, self.anchor, self.board)
             if self._has_dropped():
                 self._set_piece(True)
                 cleared_lines = self._clear_lines()
@@ -200,7 +201,7 @@ class TetrisEngine:
     def __repr__(self):
         self._set_piece(True)
         s = 'o' + '-' * self.width + 'o'
-        for line in self.board.T:
+        for line in self.board.T[1:]:
             display_line = ['\n|']
             for grid in line:
                 if grid == -1:
