@@ -16,12 +16,15 @@ INIT_ENGINE_STATE = {
 
 class GlobalEngine:
     def __init__(
-        self, width, height, player_num, game_time=120
+        self, width, height, player_num, game_time=120,
+        KO_num_to_win=2
     ):
         self.width = width
         self.height = height
         self.player_num = player_num
         self.game_time = game_time
+        self.KO_num_to_win = KO_num_to_win
+        self.winner = None
 
         self.engines = {}
         for i in range(player_num):
@@ -30,6 +33,41 @@ class GlobalEngine:
 
         self.global_state = {}
         self.engine_states = {}
+
+    def keyboard_control(self, key):
+        if key == ord('a'):  # Shift left
+            action = 0
+        elif key == ord('d'):  # Shift right
+            action = 1
+        elif key == ord('w'):  # Hard drop
+            action = 2
+        elif key == ord('s'):  # Soft drop
+            action = 3
+        elif key == ord('q'):  # Rotate left
+            action = 4
+        elif key == ord('e'):  # Rotate right
+            action = 5
+        else:
+            action = 6
+        return action
+
+    def sent_lines(self, idx, cleared_lines):
+        for other_idx, other_engine in self.engines.items():
+            if other_idx != idx:
+                other_engine.receive_bomb_lines(cleared_lines)
+
+                # Get KO
+                if cleared_lines > 0 or self.player_num == 2:
+                    if not other_engine.is_alive():
+                        self.engine_states[idx]['KO'] += 1
+
+    def compare_score(self):
+        max_score = 0
+        for idx, engine in self.engines.items():
+            score = self.engine_states[idx]['KO'] * 10000 + self.engine_states[idx]['lines_sent']
+            if score > max_score:
+                self.winner = idx
+                max_score = score
 
     def play_game(self):
         stdscr = curses.initscr()
@@ -59,24 +97,10 @@ class GlobalEngine:
             player_actions[i] = 6
 
         self.start_time = time.time()
-        while time.time() - self.start_time < self.game_time:
-            action = 6
+        game_over = False
+        while time.time() - self.start_time < self.game_time and not game_over:
             key = stdscr.getch()
-
-            if key == -1:  # No key pressed
-                action = 6
-            elif key == ord('a'):  # Shift left
-                action = 0
-            elif key == ord('d'):  # Shift right
-                action = 1
-            elif key == ord('w'):  # Hard drop
-                action = 2
-            elif key == ord('s'):  # Soft drop
-                action = 3
-            elif key == ord('q'):  # Rotate left
-                action = 4
-            elif key == ord('e'):  # Rotate right
-                action = 5
+            action = self.keyboard_control(key)
 
             stdscr.clear()
             for idx, engine in self.engines.items():
@@ -85,20 +109,19 @@ class GlobalEngine:
                 self.engine_states[idx]['lines_sent'] += cleared_lines
                 self.engine_states[idx]['bomb_lines'] = engine.bomb_lines
                 self.engine_states[idx]['highest_line'] = engine.highest_line
-                if cleared_lines > 0 or self.player_num == 2:
-                    for other_idx, other_engine in self.engines.items():
-                        if other_idx != idx:
-                            other_engine.receive_bomb_lines(cleared_lines)
-                            if not other_engine.is_alive():
-                                self.engine_states[idx]['KO'] += 1
-
+                self.sent_lines(idx, cleared_lines)
                 self.engine_states[idx]['reward'] += reward
                 dbs[idx].append((state, reward, done, action))
 
                 # Render
                 stdscr.addstr(str(engine))
                 stdscr.addstr(f'reward: {self.engine_states[idx]}\n')
+
+                if self.engine_states[idx]['KO'] >= self.KO_num_to_win:
+                    game_over = True
             stdscr.addstr(f'Time: {time.time() - self.start_time:.1f}\n')
+        self.compare_score()
+        print(f"Winner: {self.winner} States: {self.engine_states}")
 
         return dbs
 
@@ -108,4 +131,4 @@ if __name__ == '__main__':
     player_num = 2
     global_engine = GlobalEngine(width, height, player_num)
     dbs = global_engine.play_game()
-    print(dbs)
+    # print(dbs)

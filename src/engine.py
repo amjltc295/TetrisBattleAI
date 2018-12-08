@@ -214,7 +214,7 @@ class TetrisEngine:
         self.bomb_lines += bomb_lines
 
     def is_alive(self):
-        if self.bomb_lines + self.highest_line >= self.height:
+        if self.highest_line >= self.height:
             return False
         return True
 
