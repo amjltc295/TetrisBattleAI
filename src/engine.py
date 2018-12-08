@@ -98,6 +98,8 @@ class TetrisEngine:
         self.previous_bomb_lines = 0
         self.bomb_lines = 0
         self.highest_line = 0
+        self.drop_count = 0
+        self.step_num_to_drop = 3
 
         # used for generating shapes
         self._shape_counts = [0] * len(shapes)
@@ -149,28 +151,31 @@ class TetrisEngine:
     def step(self, action):
         self.anchor = (int(self.anchor[0]), int(self.anchor[1]))
         self.shape, self.anchor = self.value_action_map[action](self.shape, self.anchor, self.board)
-        # Drop each step
-        if self.time % 3 == 0:
+
+        reward = self.valid_action_count()
+
+        # Drop each 3 step
+        done = False
+        cleared_lines = 0
+        if self.drop_count == self.step_num_to_drop or action == 2:
+            self.drop_count = 0
             self.shape, self.anchor = soft_drop(self.shape, self.anchor, self.board)
+            if self._has_dropped():
+                self._set_piece(True)
+                cleared_lines = self._clear_lines()
+                self.total_cleared_lines += cleared_lines
+                reward += cleared_lines * 10
+                if np.any(self.board[:, 0]):
+                    self.clear()
+                    self.n_deaths += 1
+                    done = True
+                    reward = -10
+                else:
+                    self._new_piece()
 
         # Update time and reward
         self.time += 1
-        reward = self.valid_action_count()
-
-        done = False
-        cleared_lines = 0
-        if self._has_dropped():
-            self._set_piece(True)
-            cleared_lines = self._clear_lines()
-            self.total_cleared_lines += cleared_lines
-            reward += cleared_lines * 10
-            if np.any(self.board[:, 0]):
-                self.clear()
-                self.n_deaths += 1
-                done = True
-                reward = -10
-            else:
-                self._new_piece()
+        self.drop_count += 1
 
         self._set_piece(True)
         state = np.copy(self.board)
