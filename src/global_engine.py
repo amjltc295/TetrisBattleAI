@@ -1,4 +1,5 @@
 import curses
+import time
 
 from engine import TetrisEngine
 
@@ -15,12 +16,12 @@ INIT_ENGINE_STATE = {
 
 class GlobalEngine:
     def __init__(
-        self, width, height, player_num, count_down=120
+        self, width, height, player_num, game_time=120
     ):
         self.width = width
         self.height = height
         self.player_num = player_num
-        self.count_down = 120
+        self.game_time = game_time
 
         self.engines = {}
         for i in range(player_num):
@@ -49,15 +50,16 @@ class GlobalEngine:
                 "lines_sent": 0,
                 "hold_block": None,
                 "holded": False,
-                "bomb_lines": 0
+                "bomb_lines": 0,
+                "highest_line": 0
             }
             # Initialize dbs
             dbs[i] = []
             # Global action
             player_actions[i] = 6
 
-        while self.count_down > 0:
-            self.count_down -= 1
+        self.start_time = time.time()
+        while time.time() - self.start_time < self.game_time:
             action = 6
             key = stdscr.getch()
 
@@ -81,11 +83,12 @@ class GlobalEngine:
                 # Game step
                 state, reward, done, cleared_lines = engine.step(action)
                 self.engine_states[idx]['lines_sent'] += cleared_lines
-                if cleared_lines > 0:
+                self.engine_states[idx]['bomb_lines'] = engine.bomb_lines
+                self.engine_states[idx]['highest_lines'] = engine.highest_line
+                if cleared_lines > 0 or self.player_num == 2:
                     for other_idx, other_engine in self.engines.items():
                         if other_idx != idx:
                             other_engine.receive_bomb_lines(cleared_lines)
-                            self.engine_states[other_idx]['bomb_lines'] = other_engine.bomb_lines
                             if not other_engine.is_alive():
                                 self.engine_states[idx]['KO'] += 1
 
@@ -95,7 +98,7 @@ class GlobalEngine:
                 # Render
                 stdscr.addstr(str(engine))
                 stdscr.addstr(f'reward: {self.engine_states[idx]}\n')
-            stdscr.addstr(f'Time: {self.count_down}\n')
+            stdscr.addstr(f'Time: {time.time() - self.start_time:.1f}\n')
 
         return dbs
 
