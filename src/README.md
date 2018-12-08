@@ -1,3 +1,12 @@
+# Source code for Tetris Battle AI
+Based on ![TETRIS RL](https://github.com/jaybutera/tetris-environment/blob/master/tetrisRL_logo.png)
+
+## Test 2-player game
+```
+python global_engine.py
+```
+
+## Lines bellow are from the old repo
 ![TETRIS RL](https://github.com/jaybutera/tetris-environment/blob/master/tetrisRL_logo.png)
 
 [![PyPI
@@ -81,3 +90,4 @@ E: Rotate right
 
 At the end of each game, choose whether you want to store the information of
 that game in the data set.
+
