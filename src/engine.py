@@ -168,7 +168,8 @@ class TetrisEngine:
                 if np.any(self.board[:, 0]):
                     self.clear()
                     self.n_deaths += 1
-                    done = True
+                    if self.bomb_lines == 0:
+                        done = True
                     reward = -10
                 else:
                     self._new_piece()
