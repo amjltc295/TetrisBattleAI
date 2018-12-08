@@ -95,7 +95,9 @@ class TetrisEngine:
 
         # states
         self.total_cleared_lines = 0
+        self.previous_bomb_lines = 0
         self.bomb_lines = 0
+        self.highest_line = 0
 
         # used for generating shapes
         self._shape_counts = [0] * len(shapes)
@@ -122,7 +124,7 @@ class TetrisEngine:
         return is_occupied(self.shape, (self.anchor[0], self.anchor[1] + 1), self.board)
 
     def _clear_lines(self):
-        can_clear = [np.all(self.board[:, i]) for i in range(self.height)]
+        can_clear = [True if sum(self.board[:, i]) else False for i in range(self.height)]
         new_board = np.zeros_like(self.board)
         j = self.height - 1
         for i in range(self.height - 1, -1, -1):
@@ -172,6 +174,7 @@ class TetrisEngine:
         self._set_piece(True)
         state = np.copy(self.board)
         self._set_piece(False)
+        self._update_states()
         return state, reward, done, cleared_lines
 
     def clear(self):
@@ -192,10 +195,38 @@ class TetrisEngine:
     def __repr__(self):
         self._set_piece(True)
         s = 'o' + '-' * self.width + 'o\n'
-        s += '\n'.join(['|' + ''.join(['X' if j else ' ' for j in i]) + '|' for i in self.board.T])
+        for line in self.board.T:
+            display_line = ['\n|']
+            for grid in line:
+                if grid == -1:
+                    display_line.append('V')
+                elif grid:
+                    display_line.append('X')
+                else:
+                    display_line.append(' ')
+            display_line.append('|')
+            s += "".join(display_line)
+
         s += '\no' + '-' * self.width + 'o'
         self._set_piece(False)
         return s
 
     def receive_bomb_lines(self, bomb_lines):
         self.bomb_lines += bomb_lines
+
+    def is_alive(self):
+        if self.bomb_lines + self.highest_line > self.height:
+            return False
+        return True
+
+    def _update_states(self):
+        for i in range(len(self.board) - 1, 0, -1):
+            if sum(self.board[i]) > 0:
+                self.highest_line = len(self.board) - i
+
+        new_board = np.zeros_like(self.board)
+        new_board[:, -self.bomb_lines:] = -1
+        for i in range(self.height - self.previous_bomb_lines - 1, 0, -1):
+            new_board[:, i - (self.bomb_lines - self.previous_bomb_lines)] = self.board[:, i]
+        self.previous_bomb_lines = self.bomb_lines
+        self.board = new_board
