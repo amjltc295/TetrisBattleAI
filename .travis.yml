@@ -14,8 +14,8 @@ install:
   # Useful for debugging any issues with conda
   - conda info -a
 
-  - conda env create -f environment.yaml
-  - source activate AI_Intro_Final
+  # - conda env create -f environment.yaml
+  # - source activate AI_Intro_Final
 
 script:
   - flake8 .
