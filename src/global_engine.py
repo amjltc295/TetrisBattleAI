@@ -57,7 +57,9 @@ class GlobalEngine:
                 other_engine.receive_bomb_lines(cleared_lines)
 
                 # Get KO
-                if cleared_lines > 0 or self.player_num == 2:
+                if self.player_num == 2:
+                    self.engine_states[idx]['KO'] = other_engine.n_deaths
+                elif cleared_lines > 0:
                     if not other_engine.is_alive():
                         self.engine_states[idx]['KO'] += 1
 
