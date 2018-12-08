@@ -84,7 +84,7 @@ class GlobalEngine:
                 state, reward, done, cleared_lines = engine.step(action)
                 self.engine_states[idx]['lines_sent'] += cleared_lines
                 self.engine_states[idx]['bomb_lines'] = engine.bomb_lines
-                self.engine_states[idx]['highest_lines'] = engine.highest_line
+                self.engine_states[idx]['highest_line'] = engine.highest_line
                 if cleared_lines > 0 or self.player_num == 2:
                     for other_idx, other_engine in self.engines.items():
                         if other_idx != idx:

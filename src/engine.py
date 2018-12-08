@@ -193,14 +193,14 @@ class TetrisEngine:
 
     def __repr__(self):
         self._set_piece(True)
-        s = 'o' + '-' * self.width + 'o\n'
+        s = 'o' + '-' * self.width + 'o'
         for line in self.board.T:
             display_line = ['\n|']
             for grid in line:
                 if grid == -1:
-                    display_line.append('V')
-                elif grid:
                     display_line.append('X')
+                elif grid:
+                    display_line.append('O')
                 else:
                     display_line.append(' ')
             display_line.append('|')
@@ -222,7 +222,7 @@ class TetrisEngine:
         new_board = np.zeros_like(self.board)
         if self.bomb_lines > 0:
             new_board[:, -self.bomb_lines:] = -1
-        for i in range(self.height - self.previous_bomb_lines - 1, 0, -1):
+        for i in range(self.height - self.previous_bomb_lines - 1, -1, -1):
             new_board[:, i - (self.bomb_lines - self.previous_bomb_lines)] = self.board[:, i]
         self.previous_bomb_lines = self.bomb_lines
         self.board = new_board
