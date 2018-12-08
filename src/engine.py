@@ -124,7 +124,7 @@ class TetrisEngine:
         return is_occupied(self.shape, (self.anchor[0], self.anchor[1] + 1), self.board)
 
     def _clear_lines(self):
-        can_clear = [True if sum(self.board[:, i]) else False for i in range(self.height)]
+        can_clear = [True if sum(self.board[:, i]) == self.width else False for i in range(self.height)]
         new_board = np.zeros_like(self.board)
         j = self.height - 1
         for i in range(self.height - 1, -1, -1):
@@ -150,7 +150,8 @@ class TetrisEngine:
         self.anchor = (int(self.anchor[0]), int(self.anchor[1]))
         self.shape, self.anchor = self.value_action_map[action](self.shape, self.anchor, self.board)
         # Drop each step
-        self.shape, self.anchor = soft_drop(self.shape, self.anchor, self.board)
+        if self.time % 3 == 0:
+            self.shape, self.anchor = soft_drop(self.shape, self.anchor, self.board)
 
         # Update time and reward
         self.time += 1
@@ -178,11 +179,9 @@ class TetrisEngine:
         return state, reward, done, cleared_lines
 
     def clear(self):
-        self.time = 0
-        self.score = 0
         self._new_piece()
-        self.board = np.zeros_like(self.board)
         self.bomb_lines = 0
+        self.highest_line = 0
 
         return self.board
 
@@ -215,18 +214,18 @@ class TetrisEngine:
         self.bomb_lines += bomb_lines
 
     def is_alive(self):
-        if self.bomb_lines + self.highest_line > self.height:
+        if self.bomb_lines + self.highest_line >= self.height:
             return False
         return True
 
     def _update_states(self):
-        for i in range(len(self.board) - 1, 0, -1):
-            if sum(self.board[i]) > 0:
-                self.highest_line = len(self.board) - i
-
         new_board = np.zeros_like(self.board)
-        new_board[:, -self.bomb_lines:] = -1
+        if self.bomb_lines > 0:
+            new_board[:, -self.bomb_lines:] = -1
         for i in range(self.height - self.previous_bomb_lines - 1, 0, -1):
             new_board[:, i - (self.bomb_lines - self.previous_bomb_lines)] = self.board[:, i]
         self.previous_bomb_lines = self.bomb_lines
         self.board = new_board
+        for i in range(self.height - 1, -1, -1):
+            if sum(self.board[:, i]) > 0:
+                self.highest_line = self.height - i
