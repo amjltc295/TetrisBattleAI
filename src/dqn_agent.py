@@ -255,7 +255,7 @@ def load_checkpoint(filename):
     try:  # If these fail, its loading a supervised model
         optimizer.load_state_dict(checkpoint['optimizer'])
         # memory = checkpoint['memory']
-    except Exception as e:
+    except Exception:
         pass
     # Low chance of random action
     # steps_done = 10 * EPS_DECAY
