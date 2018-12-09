@@ -82,6 +82,7 @@ class TetrisEngine:
             4: rotate_left,
             5: rotate_right,
             6: idle,
+            7: self.hold,
         }
         self.action_value_map = dict([(j, i) for i, j in self.value_action_map.items()])
         self.nb_actions = len(self.value_action_map)
@@ -100,6 +101,8 @@ class TetrisEngine:
         self.highest_line = 0
         self.drop_count = 0
         self.step_num_to_drop = 3
+        self.holded = False
+        self.hold_shape = []
 
         # used for generating shapes
         self._shape_counts = [0] * len(shapes)
@@ -119,7 +122,7 @@ class TetrisEngine:
 
     def _new_piece(self):
         # Place randomly on x-axis with 2 tiles padding
-        self.anchor = (self.width / 2, 1)
+        self.anchor = (self.width // 2, 1)
         self.shape = self._choose_shape()
 
     def _has_dropped(self):
@@ -142,6 +145,8 @@ class TetrisEngine:
         valid_action_sum = 0
 
         for value, fn in self.value_action_map.items():
+            if value == 7:
+                continue
             # If they're equal, it is not a valid action
             if fn(self.shape, self.anchor, self.board) != (self.shape, self.anchor):
                 valid_action_sum += 1
@@ -149,7 +154,7 @@ class TetrisEngine:
         return valid_action_sum
 
     def step(self, action):
-        self.anchor = (int(self.anchor[0]), int(self.anchor[1]))
+        self.anchor = (self.anchor[0], self.anchor[1])
         self.shape, self.anchor = self.value_action_map[action](self.shape, self.anchor, self.board)
 
         reward = self.valid_action_count()
@@ -174,6 +179,7 @@ class TetrisEngine:
                     reward = -10
                 else:
                     self._new_piece()
+                    self.holded = False
 
         # Update time and reward
         self.time += 1
@@ -187,6 +193,7 @@ class TetrisEngine:
 
     def clear(self):
         self._new_piece()
+        self.holded = False
         self.bomb_lines = 0
         self.highest_line = 0
 
@@ -196,7 +203,7 @@ class TetrisEngine:
         for i, j in self.shape:
             x, y = i + self.anchor[0], j + self.anchor[1]
             if x < self.width and x >= 0 and y < self.height and y >= 0:
-                self.board[int(self.anchor[0] + i), int(self.anchor[1] + j)] = on
+                self.board[self.anchor[0] + i, self.anchor[1] + j] = on
 
     def __repr__(self):
         self._set_piece(True)
@@ -236,3 +243,15 @@ class TetrisEngine:
         for i in range(self.height - 1, -1, -1):
             if sum(self.board[:, i]) > 0:
                 self.highest_line = self.height - i
+
+    def hold(self, shape, anchor, board):
+        if self.holded:
+            return (shape, anchor)
+        else:
+            self.holded = True
+            if len(self.hold_shape) == 0:
+                self._new_piece()
+            else:
+                self.shape = self.hold_shape
+            self.hold_shape = shape
+        return (self.shape, self.anchor)
