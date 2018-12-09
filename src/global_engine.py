@@ -4,16 +4,6 @@ import time
 from engine import TetrisEngine
 
 
-INIT_ENGINE_STATE = {
-    "KO": 0,
-    "reward": 0,
-    "lines_sent": 0,
-    "hold_block": None,
-    "holded": False,
-    "bomb_lines": 0
-}
-
-
 class GlobalEngine:
     def __init__(
         self, width, height, player_num, game_time=120,
@@ -47,6 +37,8 @@ class GlobalEngine:
             action = 4
         elif key == ord('e'):  # Rotate right
             action = 5
+        elif key == ord('f'):  # Hold
+            action = 7
         else:
             action = 6
         return action
@@ -79,7 +71,6 @@ class GlobalEngine:
 
         done = False
 
-        player_actions = {}
         # Initialization
         for i in range(self.player_num):
             # Initial rendering
@@ -88,7 +79,7 @@ class GlobalEngine:
                 "KO": 0,
                 "reward": 0,
                 "lines_sent": 0,
-                "hold_block": None,
+                "hold_shape": None,
                 "holded": False,
                 "bomb_lines": 0,
                 "highest_line": 0
@@ -96,7 +87,6 @@ class GlobalEngine:
             # Initialize dbs
             dbs[i] = []
             # Global action
-            player_actions[i] = 6
 
         self.start_time = time.time()
         game_over = False
@@ -111,6 +101,8 @@ class GlobalEngine:
                 self.engine_states[idx]['lines_sent'] += cleared_lines
                 self.engine_states[idx]['bomb_lines'] = engine.bomb_lines
                 self.engine_states[idx]['highest_line'] = engine.highest_line
+                self.engine_states[idx]['holded'] = engine.holded
+                self.engine_states[idx]['hold_shape'] = engine.hold_shape
                 self.sent_lines(idx, cleared_lines)
                 self.engine_states[idx]['reward'] += reward
                 dbs[idx].append((state, reward, done, action))
