@@ -92,6 +92,7 @@ class TetrisEngine:
         self.score = -1
         self.anchor = None
         self.shape = None
+        self.shape_name = None
         self.n_deaths = 0
 
         # states
@@ -103,6 +104,7 @@ class TetrisEngine:
         self.step_num_to_drop = 3
         self.holded = False
         self.hold_shape = []
+        self.hold_shape_name = None
 
         # used for generating shapes
         self._shape_counts = [0] * len(shapes)
@@ -118,12 +120,12 @@ class TetrisEngine:
             r -= n
             if r <= 0:
                 self._shape_counts[i] += 1
-                return shapes[shape_names[i]]
+                return shape_names[i], shapes[shape_names[i]]
 
     def _new_piece(self):
         # Place randomly on x-axis with 2 tiles padding
         self.anchor = (self.width // 2, 1)
-        self.shape = self._choose_shape()
+        self.shape_name, self.shape = self._choose_shape()
 
     def _has_dropped(self):
         return is_occupied(self.shape, (self.anchor[0], self.anchor[1] + 1), self.board)
@@ -207,7 +209,8 @@ class TetrisEngine:
 
     def __repr__(self):
         self._set_piece(True)
-        s = 'o' + '-' * self.width + 'o'
+        s = f"Hold: {self.hold_shape_name}\n"
+        s += 'o' + '-' * self.width + 'o'
         for line in self.board.T[1:]:
             display_line = ['\n|']
             for grid in line:
@@ -220,7 +223,7 @@ class TetrisEngine:
             display_line.append('|')
             s += "".join(display_line)
 
-        s += '\no' + '-' * self.width + 'o'
+        s += '\no' + '-' * self.width + 'o\n'
         self._set_piece(False)
         return s
 
@@ -249,9 +252,12 @@ class TetrisEngine:
             return (shape, anchor)
         else:
             self.holded = True
+            tmp_shape_name = self.shape_name
             if len(self.hold_shape) == 0:
                 self._new_piece()
             else:
                 self.shape = self.hold_shape
+                self.shape_name = self.hold_shape_name
             self.hold_shape = shape
+            self.hold_shape_name = tmp_shape_name
         return (self.shape, self.anchor)

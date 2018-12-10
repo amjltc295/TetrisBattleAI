@@ -80,6 +80,7 @@ class GlobalEngine:
                 "reward": 0,
                 "lines_sent": 0,
                 "hold_shape": None,
+                "hold_shape_name": None,
                 "holded": False,
                 "bomb_lines": 0,
                 "highest_line": 0
@@ -103,6 +104,8 @@ class GlobalEngine:
                 self.engine_states[idx]['highest_line'] = engine.highest_line
                 self.engine_states[idx]['holded'] = engine.holded
                 self.engine_states[idx]['hold_shape'] = engine.hold_shape
+                self.engine_states[idx]['hold_shape_name'] = engine.hold_shape_name
+                self.engine_states[idx]['shape_name'] = engine.shape_name
                 self.sent_lines(idx, cleared_lines)
                 self.engine_states[idx]['reward'] += reward
                 dbs[idx].append((state, reward, done, action))
