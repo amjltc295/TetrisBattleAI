@@ -260,4 +260,15 @@ class TetrisEngine:
                 self.shape_name = self.hold_shape_name
             self.hold_shape = shape
             self.hold_shape_name = tmp_shape_name
-        return (self.shape, self.anchor)
+
+        # Prevent collision after hold
+        actions = [0, 1, 4, 5]
+        count = -1
+        while is_occupied(self.shape, self.anchor, board):
+            count += 1
+            try:
+                action = actions[count]
+                self.shape, self.anchor = self.value_action_map[action](self.shape, self.anchor, board)
+            except:
+                self.anchor = (self.anchor[0], self.anchor[1] - 1)
+        return self.shape, self.anchor
