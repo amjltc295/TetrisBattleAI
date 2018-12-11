@@ -95,6 +95,9 @@ class TetrisEngine:
         self.shape_name = None
         self.n_deaths = 0
 
+        # used for generating shapes
+        self._shape_counts = [0] * len(shapes)
+
         # states
         self.total_cleared_lines = 0
         self.previous_bomb_lines = 0
@@ -105,9 +108,7 @@ class TetrisEngine:
         self.holded = False
         self.hold_shape = []
         self.hold_shape_name = None
-
-        # used for generating shapes
-        self._shape_counts = [0] * len(shapes)
+        self.next_shape_name, self.next_shape = self._choose_shape()
 
         # clear after initializing
         self.clear()
@@ -125,7 +126,8 @@ class TetrisEngine:
     def _new_piece(self):
         # Place randomly on x-axis with 2 tiles padding
         self.anchor = (self.width // 2, 1)
-        self.shape_name, self.shape = self._choose_shape()
+        self.shape_name, self.shape = self.next_shape_name, self.next_shape
+        self.next_shape_name, self.next_shape = self._choose_shape()
 
     def _has_dropped(self):
         return is_occupied(self.shape, (self.anchor[0], self.anchor[1] + 1), self.board)
@@ -210,6 +212,7 @@ class TetrisEngine:
     def __repr__(self):
         self._set_piece(True)
         s = f"Hold: {self.hold_shape_name}\n"
+        s += f"Next: {self.next_shape_name}\n"
         s += 'o' + '-' * self.width + 'o'
         for line in self.board.T[1:]:
             display_line = ['\n|']
