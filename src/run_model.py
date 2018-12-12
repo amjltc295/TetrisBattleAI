@@ -3,7 +3,7 @@ import os
 import torch
 import time
 from engine import TetrisEngine
-from dqn_agent import DQN, ReplayMemory, Transition
+from dqn_agent import DQN
 from torch.autograd import Variable
 
 use_cuda = torch.cuda.is_available()
@@ -11,8 +11,9 @@ use_cuda = torch.cuda.is_available()
 FloatTensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
 LongTensor = torch.cuda.LongTensor if use_cuda else torch.LongTensor
 
-width, height = 10, 20 # standard tetris friends rules
+width, height = 10, 20  # standard tetris friends rules
 engine = TetrisEngine(width, height)
+
 
 def load_model(filename):
     model = DQN()
@@ -23,17 +24,17 @@ def load_model(filename):
 
     return model
 
+
 def run(model):
-    state = FloatTensor(engine.clear()[None,None,:,:])
+    state = FloatTensor(engine.clear()[None, None, :, :])
     score = 0
     while True:
-        action = model(Variable(state,
-            volatile=True).type(FloatTensor)).data.max(1)[1].view(1,1).type(LongTensor)
-        print( model(Variable(state,
-            volatile=True).type(FloatTensor)).data)
+        action = model(
+            Variable(state, volatile=True).type(FloatTensor)).data.max(1)[1].view(1, 1).type(LongTensor)
+        print(model(Variable(state, volatile=True).type(FloatTensor)).data)
 
-        state, reward, done = engine.step(action[0,0])
-        state = FloatTensor(state[None,None,:,:])
+        state, reward, done = engine.step(action[0, 0])
+        state = FloatTensor(state[None, None, :, :])
 
         # Accumulate reward
         score += int(reward)
@@ -45,6 +46,7 @@ def run(model):
         if done:
             print('score {0}'.format(score))
             break
+
 
 if len(sys.argv) <= 1:
     print('specify a filename to load the model')

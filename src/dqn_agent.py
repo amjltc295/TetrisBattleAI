@@ -4,12 +4,8 @@ import random
 import sys
 import os
 import shutil
-import numpy as np
-#import matplotlib
-#import matplotlib.pyplot as plt
 from collections import namedtuple
 from itertools import count
-from copy import deepcopy
 
 import torch
 import torch.nn as nn
@@ -19,23 +15,18 @@ from torch.autograd import Variable
 
 from engine import TetrisEngine
 
-width, height = 10, 20 # standard tetris friends rules
+width, height = 10, 20  # standard tetris friends rules
 engine = TetrisEngine(width, height)
 
-# set up matplotlib
-#is_ipython = 'inline' in matplotlib.get_backend()
-#if is_ipython:
-    #from IPython import display
-
-#plt.ion()
 
 # if gpu is to be used
 use_cuda = torch.cuda.is_available()
-if use_cuda:print("....Using Gpu...")
+if use_cuda:
+    print("....Using Gpu...")
 FloatTensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
 LongTensor = torch.cuda.LongTensor if use_cuda else torch.LongTensor
 ByteTensor = torch.cuda.ByteTensor if use_cuda else torch.ByteTensor
-#Tensor = FloatTensor
+# Tensor = FloatTensor
 
 
 ######################################################################
@@ -81,16 +72,16 @@ class DQN(nn.Module):
         self.bn1 = nn.BatchNorm2d(16)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=4, stride=2)
         self.bn2 = nn.BatchNorm2d(32)
-        #self.conv3 = nn.Conv2d(32, 32, kernel_size=2, stride=2)
-        #self.bn3 = nn.BatchNorm2d(32)
-        #self.rnn = nn.LSTM(448, 240)
+        # self.conv3 = nn.Conv2d(32, 32, kernel_size=2, stride=2)
+        # self.bn3 = nn.BatchNorm2d(32)
+        # self.rnn = nn.LSTM(448, 240)
         self.lin1 = nn.Linear(768, 256)
         self.head = nn.Linear(256, engine.nb_actions)
 
     def forward(self, x):
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
-        #x = F.relu(self.bn3(self.conv3(x)))
+        # x = F.relu(self.bn3(self.conv3(x)))
         x = F.relu(self.lin1(x.view(x.size(0), -1)))
         return self.head(x.view(x.size(0), -1))
 
@@ -237,9 +228,12 @@ def optimize_model():
     for param in model.parameters():
         param.grad.data.clamp_(-1, 1)
     optimizer.step()
-    
-    if len(loss.data)>0 : return loss.data[0] 
-    else : return loss
+
+    if len(loss.data) > 0:
+        return loss.data[0]
+    else:
+        return loss
+
 
 def optimize_supervised(pred, targ):
     optimizer.zero_grad()
@@ -248,23 +242,26 @@ def optimize_supervised(pred, targ):
     diff.backward()
     optimizer.step()
 
+
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     torch.save(state, filename)
     if is_best:
         shutil.copyfile(filename, 'model_best.pth.tar')
 
+
 def load_checkpoint(filename):
     checkpoint = torch.load(filename)
     model.load_state_dict(checkpoint['state_dict'])
-    try: # If these fail, its loading a supervised model
+    try:  # If these fail, its loading a supervised model
         optimizer.load_state_dict(checkpoint['optimizer'])
-        memory = checkpoint['memory']
-    except Exception as e:
+        # memory = checkpoint['memory']
+    except Exception:
         pass
     # Low chance of random action
-    #steps_done = 10 * EPS_DECAY
+    # steps_done = 10 * EPS_DECAY
 
     return checkpoint['epoch'], checkpoint['best_score']
+
 
 if __name__ == '__main__':
     # Check if user specified to resume from a checkpoint
@@ -292,7 +289,7 @@ if __name__ == '__main__':
     f = open('log.out', 'w+')
     for i_episode in count(start_epoch):
         # Initialize the environment and state
-        state = FloatTensor(engine.clear()[None,None,:,:])
+        state = FloatTensor(engine.clear()[None, None, :, :])
 
         score = 0
         for t in count():
@@ -301,9 +298,9 @@ if __name__ == '__main__':
 
             # Observations
             last_state = state
-            state, reward, done = engine.step(action[0,0])
-            state = FloatTensor(state[None,None,:,:])
-            
+            state, reward, done = engine.step(action[0, 0])
+            state = FloatTensor(state[None, None, :, :])
+
             # Accumulate reward
             score += int(reward)
 
@@ -325,17 +322,13 @@ if __name__ == '__main__':
                 if i_episode % 100 == 0:
                     is_best = True if score > best_score else False
                     save_checkpoint({
-                        'epoch' : i_episode,
-                        'state_dict' : model.state_dict(),
-                        'best_score' : best_score,
-                        'optimizer' : optimizer.state_dict(),
-                        'memory' : memory
+                        'epoch': i_episode,
+                        'state_dict': model.state_dict(),
+                        'best_score': best_score,
+                        'optimizer': optimizer.state_dict(),
+                        'memory': memory
                         }, is_best)
                 break
 
     f.close()
     print('Complete')
-    #env.render(close=True)
-    #env.close()
-    #plt.ioff()
-    #plt.show()
