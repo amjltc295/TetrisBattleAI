@@ -17,23 +17,28 @@ def play_game():
         action = 6
         key = stdscr.getch()
 
-        if key == -1:  # No key pressed
-            action = 6
-        elif key == ord('a'):  # Shift left
-            action = 0
-        elif key == ord('d'):  # Shift right
-            action = 1
-        elif key == ord('w'):  # Hard drop
-            action = 2
-        elif key == ord('s'):  # Soft drop
-            action = 3
-        elif key == ord('q'):  # Rotate left
-            action = 4
-        elif key == ord('e'):  # Rotate right
-            action = 5
+        def keyboard_control(key):
+            if key == ord('a'):  # Shift left
+                action = 0
+            elif key == ord('d'):  # Shift right
+                action = 1
+            elif key == ord('w'):  # Hard drop
+                action = 2
+            elif key == ord('s'):  # Soft drop
+                action = 3
+            elif key == ord('q'):  # Rotate left
+                action = 4
+            elif key == ord('e'):  # Rotate right
+                action = 5
+            elif key == ord('f'):  # Hold
+                action = 7
+            else:
+                action = 6
+            return action
+        action = keyboard_control(key)
 
         # Game step
-        state, reward, done = env.step(action)
+        state, reward, done, cleared_lines = env.step(action)
         db.append((state, reward, done, action))
 
         # Render
