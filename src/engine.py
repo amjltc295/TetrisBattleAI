@@ -269,6 +269,6 @@ class TetrisEngine:
             try:
                 action = actions[count]
                 self.shape, self.anchor = self.value_action_map[action](self.shape, self.anchor, board)
-            except:
+            except Exception:
                 self.anchor = (self.anchor[0], self.anchor[1] - 1)
         return self.shape, self.anchor
