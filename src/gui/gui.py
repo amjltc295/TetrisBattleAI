@@ -5,21 +5,19 @@ import pygame
 import operator
 from src.gui.mino import *
 from random import *
+from pygame.locals import *
 
 
 # Initial values
 blink = False
-start = False
 pause = False
 done = False
-
-dx, dy = 3, 0  # Minos location status
-rotation = 0   # Minos rotation status
 
 name_location = 0
 name = [65, 65, 65]
 
 pygame.init()
+
 
 class UIVariables:
     block_size = 17  # Height, width of single block
@@ -60,146 +58,135 @@ class UIVariables:
 
     t_color = [grey_2, cyan, blue, orange, yellow, green, pink, red, grey_3]
 
+    
+class GUI:
+    def __init__(self, global_state):
+        self.global_state = global_state
 
-# Draw block
-def draw_block(x, y, color):
-    pygame.draw.rect(
-        screen,
-        color,
-        Rect(x, y, UIVariables.block_size, UIVariables.block_size)
-    )
-    pygame.draw.rect(
-        screen,
-        UIVariables.grey_1,
-        Rect(x, y, UIVariables.block_size, UIVariables.block_size),
-        1
-    )
+        self.screen_width = 600
+        self.screen_height = 374
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
+        pygame.time.set_timer(pygame.USEREVENT, UIVariables.framerate * 10)
+        pygame.display.set_caption("Make Tetris Great Again")
 
+    # Draw block
+    def draw_block(self, x, y, color):
+        pygame.draw.rect(
+            self.screen,
+            color,
+            Rect(x, y, UIVariables.UIVariables.block_size, UIVariables.UIVariables.block_size)
+        )
+        pygame.draw.rect(
+            self.screen,
+            UIVariables.grey_1,
+            Rect(x, y, UIVariables.UIVariables.block_size, UIVariables.UIVariables.block_size),
+            1
+        )
 
-# Draw game screen
-def draw_board(next, hold, score, level, goal):
-    screen.fill(UIVariables.grey_1)
+    # Draw game screen
+    def draw_board(self, next, hold, score, level, goal):
+        self.screen.fill(UIVariables.grey_1)
 
-    # Draw sidebar
-    pygame.draw.rect(
-        screen,
-        UIVariables.white,
-        Rect(204, 0, 96, 374)
-    )
+        # Draw sidebar
+        pygame.draw.rect(
+            self.screen,
+            UIVariables.white,
+            Rect(204, 0, 96, 374)
+        )
 
-    # Draw next mino
-    grid_n = tetrimino.mino_map[next - 1][0]
+        # Draw next mino
+        grid_n = tetrimino.mino_map[next - 1][0]
 
-    for i in range(4):
-        for j in range(4):
-            dx = 220 + block_size * j
-            dy = 140 + block_size * i
-            if grid_n[i][j] != 0:
-                pygame.draw.rect(
-                    screen,
-                    UIVariables.t_color[grid_n[i][j]],
-                    Rect(dx, dy, block_size, block_size)
-                )
-
-    # Draw hold mino
-    grid_h = tetrimino.mino_map[hold - 1][0]
-
-    if hold_mino != -1:
         for i in range(4):
             for j in range(4):
-                dx = 220 + block_size * j
-                dy = 50 + block_size * i
-                if grid_h[i][j] != 0:
+                dx = 220 + UIVariables.UIVariables.block_size * j
+                dy = 140 + UIVariables.block_size * i
+                if grid_n[i][j] != 0:
                     pygame.draw.rect(
-                        screen,
-                        UIVariables.t_color[grid_h[i][j]],
-                        Rect(dx, dy, block_size, block_size)
+                        self.screen,
+                        UIVariables.t_color[grid_n[i][j]],
+                        Rect(dx, dy, UIVariables.block_size, UIVariables.block_size)
                     )
 
-    # Set max score
-    if score > 999999:
-        score = 999999
+        # Draw hold mino
+        grid_h = tetrimino.mino_map[hold - 1][0]
 
-    # Draw texts
-    text_hold = UIVariables.h5.render("HOLD", 1, UIVariables.black)
-    text_next = UIVariables.h5.render("NEXT", 1, UIVariables.black)
-    text_score = UIVariables.h5.render("SCORE", 1, UIVariables.black)
-    score_value = UIVariables.h4.render(str(score), 1, UIVariables.black)
-    text_level = UIVariables.h5.render("LEVEL", 1, UIVariables.black)
-    level_value = UIVariables.h4.render(str(level), 1, UIVariables.black)
-    text_goal = UIVariables.h5.render("GOAL", 1, UIVariables.black)
-    goal_value = UIVariables.h4.render(str(goal), 1, UIVariables.black)
+        if hold_mino != -1:
+            for i in range(4):
+                for j in range(4):
+                    dx = 220 + UIVariables.block_size * j
+                    dy = 50 + UIVariables.block_size * i
+                    if grid_h[i][j] != 0:
+                        pygame.draw.rect(
+                            .selfscreen,
+                            UIVariables.t_color[grid_h[i][j]],
+                            Rect(dx, dy, UIVariables.block_size, UIVariables.block_size)
+                        )
 
-    # Place texts
-    screen.blit(text_hold, (215, 14))
-    screen.blit(text_next, (215, 104))
-    screen.blit(text_score, (215, 194))
-    screen.blit(score_value, (220, 210))
-    screen.blit(text_level, (215, 254))
-    screen.blit(level_value, (220, 270))
-    screen.blit(text_goal, (215, 314))
-    screen.blit(goal_value, (220, 330))
+        # Set max score
+        if score > 999999:
+            score = 999999
 
-    # Draw board
-    for x in range(width):
-        for y in range(height):
-            dx = 17 + block_size * x
-            dy = 17 + block_size * y
-            draw_block(dx, dy, UIVariables.t_color[matrix[x][y + 1]])
+        # Draw texts
+        text_hold = UIVariables.h5.render("HOLD", 1, UIVariables.black)
+        text_next = UIVariables.h5.render("NEXT", 1, UIVariables.black)
+        text_score = UIVariables.h5.render("SCORE", 1, UIVariables.black)
+        score_value = UIVariables.h4.render(str(score), 1, UIVariables.black)
+        text_level = UIVariables.h5.render("LEVEL", 1, UIVariables.black)
+        level_value = UIVariables.h4.render(str(level), 1, UIVariables.black)
+        text_goal = UIVariables.h5.render("GOAL", 1, UIVariables.black)
+        goal_value = UIVariables.h4.render(str(goal), 1, UIVariables.black)
 
+        # Place texts
+        self.screen.blit(text_hold, (215, 14))
+        self.screen.blit(text_next, (215, 104))
+        self.screen.blit(text_score, (215, 194))
+        self.screen.blit(score_value, (220, 210))
+        self.screen.blit(text_level, (215, 254))
+        self.screen.blit(level_value, (220, 270))
+        self.screen.blit(text_goal, (215, 314))
+        self.screen.blit(goal_value, (220, 330))
 
-# Draw a tetrimino
-def draw_mino(x, y, mino, r):
-    grid = tetrimino.mino_map[mino - 1][r]
+        # Draw board
+        for x in range(self.width):
+            for y in range(self.height):
+                dx = 17 + UIVariables.block_size * x
+                dy = 17 + UIVariables.block_size * y
+                UIVariables.draw_block(dx, dy, UIVariables.t_color[self.matrix[x][y + 1]])
 
-    tx, ty = x, y
+    # Draw a tetrimino
+    def draw_mino(x, y, mino, r):
+        grid = tetrimino.mino_map[mino - 1][r]
 
-    # Draw ghost
-    for i in range(4):
-        for j in range(4):
-            if grid[i][j] != 0:
-                matrix[tx + j][ty + i] = 8
+        tx, ty = x, y
 
-    # Draw mino
-    for i in range(4):
-        for j in range(4):
-            if grid[i][j] != 0:
-                matrix[x + j][y + i] = grid[i][j]
+        # Draw ghost
+        for i in range(4):
+            for j in range(4):
+                if grid[i][j] != 0:
+                    self.matrix[tx + j][ty + i] = 8
 
+        # Draw mino
+        for i in range(4):
+            for j in range(4):
+                if grid[i][j] != 0:
+                    self.matrix[x + j][y + i] = grid[i][j]
 
-# Erase a tetrimino
-def erase_mino(x, y, mino, r):
-    grid = tetrimino.mino_map[mino - 1][r]
+    # Erase a tetrimino
+    def erase_mino(x, y, mino, r):
+        grid = tetrimino.mino_map[mino - 1][r]
 
-    # Erase ghost
-    for j in range(height + 1):
-        for i in range(width):
-            if matrix[i][j] == 8:
-                matrix[i][j] = 0
+        # Erase ghost
+        for j in range(height + 1):
+            for i in range(width):
+                if matrix[i][j] == 8:
+                    matrix[i][j] = 0
 
-    # Erase mino
-    for i in range(4):
-        for j in range(4):
-            if grid[i][j] != 0:
-                matrix[x + j][y + i] = 0
-
-
-def update_gui(global_state):
-    # TODO
-    return global_state
-
-class gui:
-    def __init__(self, global_state):
-        self.width = 10  # Board width
-        self.height = 20  # Board height
-        self.hold = False  # Hold status
-        self.matrix = [[0 for y in range(height + 1)] for x in range(width)]  # Board matrix
-
-        screen_width = 600
-        screen_height = 374
-        screen = pygame.display.set_mode((screen_width, screen_height))
-        pygame.time.set_timer(pygame.USEREVENT, framerate * 10)
-        pygame.display.set_caption("Make Tetris Great Again")
+        # Erase mino
+        for i in range(4):
+            for j in range(4):
+                if grid[i][j] != 0:
+                    matrix[x + j][y + i] = 0
 
 while not done:
     # Pause screen
