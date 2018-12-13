@@ -6,6 +6,8 @@ import operator
 from src.gui.mino import *
 from random import *
 from pygame.locals import *
+from src.global_engine import *
+from src.engine import *
 
 
 # Initial values
@@ -60,6 +62,7 @@ class UIVariables:
 
     
 class GUI:
+    # Get global engine and setup gui
     def __init__(self, global_state):
         self.global_state = global_state
 
@@ -74,121 +77,133 @@ class GUI:
         pygame.draw.rect(
             self.screen,
             color,
-            Rect(x, y, UIVariables.UIVariables.block_size, UIVariables.UIVariables.block_size)
+            Rect(x, y, UIVariables.block_size, UIVariables.block_size)
         )
         pygame.draw.rect(
             self.screen,
             UIVariables.grey_1,
-            Rect(x, y, UIVariables.UIVariables.block_size, UIVariables.UIVariables.block_size),
+            Rect(x, y, UIVariables.block_size, UIVariables.block_size),
             1
         )
 
     # Draw game screen
     def draw_board(self, next, hold, score, level, goal):
+        # Background gray
         self.screen.fill(UIVariables.grey_1)
 
-        # Draw sidebar
+        # Draw sidebar 1
         pygame.draw.rect(
             self.screen,
             UIVariables.white,
-            Rect(204, 0, 96, 374)
+            Rect(0, 0, 96, 374)
+        )
+        # Draw sidebar 2
+        pygame.draw.rect(
+            self.screen,
+            UIVariables.white,
+            Rect(504, 0, 96, 374)
         )
 
-        # Draw next mino
-        grid_n = tetrimino.mino_map[next - 1][0]
-
+        # Draw next mino 1
+        grid_n1 = tetrimino.mino_map[self.global_state.engines[0].next_shape - 1][0]
         for i in range(4):
             for j in range(4):
-                dx = 220 + UIVariables.UIVariables.block_size * j
+                dx = 20 + UIVariables.block_size * j
                 dy = 140 + UIVariables.block_size * i
-                if grid_n[i][j] != 0:
+                if grid_n1[i][j] != 0:
                     pygame.draw.rect(
                         self.screen,
-                        UIVariables.t_color[grid_n[i][j]],
+                        UIVariables.t_color[grid_n1[i][j]],
+                        Rect(dx, dy, UIVariables.block_size, UIVariables.block_size)
+                    )
+        # Draw next mino 2
+        grid_n2 = tetrimino.mino_map[self.global_state.engines[1].next_shape - 1][0]
+        for i in range(4):
+            for j in range(4):
+                dx = 520 + UIVariables.block_size * j
+                dy = 140 + UIVariables.block_size * i
+                if grid_n2[i][j] != 0:
+                    pygame.draw.rect(
+                        self.screen,
+                        UIVariables.t_color[grid_n2[i][j]],
                         Rect(dx, dy, UIVariables.block_size, UIVariables.block_size)
                     )
 
-        # Draw hold mino
-        grid_h = tetrimino.mino_map[hold - 1][0]
-
-        if hold_mino != -1:
+        # Draw hold mino 1
+        grid_h1 = tetrimino.mino_map[self.global_state.engines[0].hold_shape - 1][0]
+        if self.global_state.engines[0].holded:
             for i in range(4):
                 for j in range(4):
-                    dx = 220 + UIVariables.block_size * j
+                    dx = 20 + UIVariables.block_size * j
                     dy = 50 + UIVariables.block_size * i
-                    if grid_h[i][j] != 0:
+                    if grid_h1[i][j] != 0:
                         pygame.draw.rect(
-                            .selfscreen,
-                            UIVariables.t_color[grid_h[i][j]],
+                            self.screen,
+                            UIVariables.t_color[grid_h1[i][j]],
                             Rect(dx, dy, UIVariables.block_size, UIVariables.block_size)
                         )
-
-        # Set max score
-        if score > 999999:
-            score = 999999
+        # Draw hold mino 2
+        grid_h2 = tetrimino.mino_map[self.global_state.engines[1].hold_shape - 1][0]
+        if self.global_state.engines[1].holded:
+            for i in range(4):
+                for j in range(4):
+                    dx = 20 + UIVariables.block_size * j
+                    dy = 50 + UIVariables.block_size * i
+                    if grid_h2[i][j] != 0:
+                        pygame.draw.rect(
+                            self.screen,
+                            UIVariables.t_color[grid_h2[i][j]],
+                            Rect(dx, dy, UIVariables.block_size, UIVariables.block_size)
+                        )
 
         # Draw texts
         text_hold = UIVariables.h5.render("HOLD", 1, UIVariables.black)
         text_next = UIVariables.h5.render("NEXT", 1, UIVariables.black)
         text_score = UIVariables.h5.render("SCORE", 1, UIVariables.black)
-        score_value = UIVariables.h4.render(str(score), 1, UIVariables.black)
-        text_level = UIVariables.h5.render("LEVEL", 1, UIVariables.black)
-        level_value = UIVariables.h4.render(str(level), 1, UIVariables.black)
-        text_goal = UIVariables.h5.render("GOAL", 1, UIVariables.black)
-        goal_value = UIVariables.h4.render(str(goal), 1, UIVariables.black)
+        score1_value = UIVariables.h4.render(str(self.global_state.engines[0].score), 1, UIVariables.black)
+        score2_value = UIVariables.h4.render(str(self.global_state.engines[1].score), 1, UIVariables.black)
+        text_lines = UIVariables.h5.render("Total cleared lines", 1, UIVariables.black)
+        lines1_value = UIVariables.h4.render(str(self.global_state.engines[0].total_cleared_lines), 1, UIVariables.black)
+        lines2_value = UIVariables.h4.render(str(self.global_state.engines[1].total_cleared_lines), 1, UIVariables.black)
+        text_ko = UIVariables.h5.render("KO's", 1, UIVariables.black)
+        ko1_value = UIVariables.h4.render(str(self.global_state.engines[0].n_deaths), 1, UIVariables.black)
+        ko2_value = UIVariables.h4.render(str(self.global_state.engines[1].n_deaths), 1, UIVariables.black)
 
         # Place texts
-        self.screen.blit(text_hold, (215, 14))
-        self.screen.blit(text_next, (215, 104))
-        self.screen.blit(text_score, (215, 194))
-        self.screen.blit(score_value, (220, 210))
-        self.screen.blit(text_level, (215, 254))
-        self.screen.blit(level_value, (220, 270))
-        self.screen.blit(text_goal, (215, 314))
-        self.screen.blit(goal_value, (220, 330))
+        self.screen.blit(text_hold, (15, 14))
+        self.screen.blit(text_hold, (515, 14))
+        self.screen.blit(text_next, (15, 104))
+        self.screen.blit(text_next, (515, 104))
+        self.screen.blit(text_score, (15, 194))
+        self.screen.blit(text_score, (515, 194))
+        self.screen.blit(score1_value, (20, 210))
+        self.screen.blit(score2_value, (520, 210))
+        self.screen.blit(text_lines, (15, 254))
+        self.screen.blit(text_lines, (515, 254))
+        self.screen.blit(lines1_value, (20, 270))
+        self.screen.blit(lines2_value, (520, 270))
+        self.screen.blit(text_ko, (15, 314))
+        self.screen.blit(text_ko, (515, 314))
+        self.screen.blit(ko1_value, (20, 330))
+        self.screen.blit(ko2_value, (520, 330))
 
-        # Draw board
-        for x in range(self.width):
-            for y in range(self.height):
+        # Draw board 1
+        for x in range(self.global_state.width):
+            for y in range(self.global_state.height):
                 dx = 17 + UIVariables.block_size * x
                 dy = 17 + UIVariables.block_size * y
-                UIVariables.draw_block(dx, dy, UIVariables.t_color[self.matrix[x][y + 1]])
-
-    # Draw a tetrimino
-    def draw_mino(x, y, mino, r):
-        grid = tetrimino.mino_map[mino - 1][r]
-
-        tx, ty = x, y
-
-        # Draw ghost
-        for i in range(4):
-            for j in range(4):
-                if grid[i][j] != 0:
-                    self.matrix[tx + j][ty + i] = 8
-
-        # Draw mino
-        for i in range(4):
-            for j in range(4):
-                if grid[i][j] != 0:
-                    self.matrix[x + j][y + i] = grid[i][j]
-
-    # Erase a tetrimino
-    def erase_mino(x, y, mino, r):
-        grid = tetrimino.mino_map[mino - 1][r]
-
-        # Erase ghost
-        for j in range(height + 1):
-            for i in range(width):
-                if matrix[i][j] == 8:
-                    matrix[i][j] = 0
-
-        # Erase mino
-        for i in range(4):
-            for j in range(4):
-                if grid[i][j] != 0:
-                    matrix[x + j][y + i] = 0
+                self.draw_block(dx, dy, UIVariables.t_color[self.global_state.engines[0].board[x][y + 1]])
+        # Draw board 2
+        for x in range(self.global_state.width):
+            for y in range(self.global_state.height):
+                dx = 317 + UIVariables.block_size * x
+                dy = 317 + UIVariables.block_size * y
+                self.draw_block(dx, dy, UIVariables.t_color[self.global_state.engines[1].board[x][y + 1]])
 
 while not done:
+    # Update the gui depending on the framerate
+    pygame.time.wait(UIVariables.framerate)
+
     # Pause screen
     if pause:
         for event in pygame.event.get():
