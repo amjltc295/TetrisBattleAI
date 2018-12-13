@@ -106,6 +106,7 @@ class GlobalEngine:
                 self.engine_states[idx]['hold_shape'] = engine.hold_shape
                 self.engine_states[idx]['hold_shape_name'] = engine.hold_shape_name
                 self.engine_states[idx]['shape_name'] = engine.shape_name
+                self.engine_states[idx]['next_shape_name'] = engine.next_shape_name
                 self.sent_lines(idx, cleared_lines)
                 self.engine_states[idx]['reward'] += reward
                 dbs[idx].append((state, reward, done, action))
