@@ -3,19 +3,8 @@
 
 import pygame
 import operator
-from mino import *
+from src.gui.mino import *
 from random import *
-from pygame.locals import *
-
-# Define
-block_size = 17    # Height, width of single block
-framerate = 30     # Bigger -> Slower
-
-screen_width = 600
-screen_height = 374
-screen = pygame.display.set_mode((screen_width, screen_height))
-pygame.time.set_timer(pygame.USEREVENT, framerate * 10)
-pygame.display.set_caption("Make Tetris Great Again")
 
 
 # Initial values
@@ -30,8 +19,12 @@ rotation = 0   # Minos rotation status
 name_location = 0
 name = [65, 65, 65]
 
+pygame.init()
 
 class UIVariables:
+    block_size = 17  # Height, width of single block
+    framerate = 30  # Bigger -> Slower
+
     # Fonts
     font_path = "./assets/fonts/OpenSans-Light.ttf"
     font_path_b = "./assets/fonts/OpenSans-Bold.ttf"
@@ -73,12 +66,12 @@ def draw_block(x, y, color):
     pygame.draw.rect(
         screen,
         color,
-        Rect(x, y, block_size, block_size)
+        Rect(x, y, UIVariables.block_size, UIVariables.block_size)
     )
     pygame.draw.rect(
         screen,
         UIVariables.grey_1,
-        Rect(x, y, block_size, block_size),
+        Rect(x, y, UIVariables.block_size, UIVariables.block_size),
         1
     )
 
@@ -202,7 +195,11 @@ class gui:
         self.hold = False  # Hold status
         self.matrix = [[0 for y in range(height + 1)] for x in range(width)]  # Board matrix
 
-        pygame.init()
+        screen_width = 600
+        screen_height = 374
+        screen = pygame.display.set_mode((screen_width, screen_height))
+        pygame.time.set_timer(pygame.USEREVENT, framerate * 10)
+        pygame.display.set_caption("Make Tetris Great Again")
 
 while not done:
     # Pause screen
