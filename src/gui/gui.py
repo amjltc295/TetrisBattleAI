@@ -10,16 +10,7 @@ from src.global_engine import *
 from src.engine import *
 
 
-# Initial values
-blink = False
-pause = False
-done = False
-
-name_location = 0
-name = [65, 65, 65]
-
 pygame.init()
-
 
 class UIVariables:
     block_size = 17  # Height, width of single block
@@ -66,6 +57,13 @@ class GUI:
     def __init__(self, global_state):
         self.global_state = global_state
 
+        # Initial values
+        self.blink = False
+        self.pause = False
+        self.start = True
+        self.game_over = False
+        self.done = False
+
         self.screen_width = 600
         self.screen_height = 374
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
@@ -87,7 +85,7 @@ class GUI:
         )
 
     # Draw game screen
-    def draw_board(self, next, hold, score, level, goal):
+    def draw_board(self):
         # Background gray
         self.screen.fill(UIVariables.grey_1)
 
@@ -200,314 +198,85 @@ class GUI:
                 dy = 317 + UIVariables.block_size * y
                 self.draw_block(dx, dy, UIVariables.t_color[self.global_state.engines[1].board[x][y + 1]])
 
+    # TODO
+    def draw_statistics(self):
+                return
+
+    def draw_screen(self):
+        # Pause screen
+        if self.pause:
+            for event in pygame.event.get():
+                if event.type == QUIT:
+                    self.done = True
+                elif event.type == USEREVENT:
+                    pygame.time.set_timer(pygame.USEREVENT, 300)
+                    self.draw_board()
+
+                    pause_text = UIVariables.h2_b.render("PAUSED", 1, UIVariables.white)
+                    pause_start = UIVariables.h5.render("Press esc to continue", 1, UIVariables.white)
+
+                    self.screen.blit(pause_text, (43, 100))
+                    if self.blink:
+                        self.screen.blit(pause_start, (40, 160))
+                        self.blink = False
+                    else:
+                        self.blink = True
+                    pygame.display.update()
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == K_ESCAPE:
+                        self.pause = False
+                        pygame.time.set_timer(pygame.USEREVENT, 1)
+
+        # Game screen
+        elif self.start:
+            for event in pygame.event.get():
+                if event.type == QUIT:
+                    self.done = True
+                elif event.type == USEREVENT:
+                    # Set speed
+                    if not self.done:
+                        keys_pressed = pygame.key.get_pressed()
+                        if keys_pressed[K_DOWN]:
+                            pygame.time.set_timer(pygame.USEREVENT, UIVariables.framerate * 1)
+                        else:
+                            pygame.time.set_timer(pygame.USEREVENT, UIVariables.framerate * 10)
+                    # Draw board
+                    self.draw_board()
+                elif event.type == pygame.KEYDOWN:
+                    keys_pressed = pygame.key.get_pressed()
+
+            pygame.display.update()
+
+        # Game over screen
+        elif self.game_over:
+            for event in pygame.event.get():
+                if event.type == QUIT:
+                    self.done = True
+                elif event.type == USEREVENT:
+                    pygame.time.set_timer(pygame.USEREVENT, 300)
+
+                    # TODO: show statistics screen
+                    self.draw_statistics()
+
+                    # Show "Game over"
+                    over_text_1 = UIVariables.h2_b.render("GAME", 1, UIVariables.white)
+                    over_text_2 = UIVariables.h2_b.render("OVER", 1, UIVariables.white)
+                    self.screen.blit(over_text_1, (58, 75))
+                    self.screen.blit(over_text_2, (62, 105))
+
+                    over_start = UIVariables.h5.render("Press return to exit", 1, UIVariables.white)
+                    if self.blink:
+                        self.screen.blit(over_start, (32, 195))
+                        self.blink = False
+                    else:
+                        self.blink = True
+                    pygame.display.update()
+                elif event.type == pygame.KEYDOWN:
+                    keys_pressed = pygame.key.get_pressed()
+
+
 while not done:
     # Update the gui depending on the framerate
     pygame.time.wait(UIVariables.framerate)
-
-    # Pause screen
-    if pause:
-        for event in pygame.event.get():
-            if event.type == QUIT:
-                done = True
-            elif event.type == USEREVENT:
-                pygame.time.set_timer(pygame.USEREVENT, 300)
-                draw_board(next_mino, hold_mino, score, level, goal)
-
-                pause_text = UIVariables.h2_b.render("PAUSED", 1, UIVariables.white)
-                pause_start = UIVariables.h5.render("Press esc to continue", 1, UIVariables.white)
-
-                screen.blit(pause_text, (43, 100))
-                if blink:
-                    screen.blit(pause_start, (40, 160))
-                    blink = False
-                else:
-                    blink = True
-                pygame.display.update()
-            elif event.type == KEYDOWN:
-                if event.key == K_ESCAPE:
-                    pause = False
-                    pygame.time.set_timer(pygame.USEREVENT, 1)
-
-    # Game screen
-    elif start:
-        for event in pygame.event.get():
-            if event.type == QUIT:
-                done = True
-            elif event.type == USEREVENT:
-                # Set speed
-                if not game_over:
-                    keys_pressed = pygame.key.get_pressed()
-                    if keys_pressed[K_DOWN]:
-                        pygame.time.set_timer(pygame.USEREVENT, framerate * 1)
-                    else:
-                        pygame.time.set_timer(pygame.USEREVENT, framerate * 10)
-
-                # Draw a mino
-                draw_mino(dx, dy, mino, rotation)
-                draw_board(next_mino, hold_mino, score, level, goal)
-
-                # Erase a mino
-                if not game_over:
-                    erase_mino(dx, dy, mino, rotation)
-
-                # Move mino down
-                if not is_bottom(dx, dy, mino, rotation):
-                    dy += 1
-
-                # Create new mino
-                else:
-                    if hard_drop or bottom_count == 6:
-                        hard_drop = False
-                        bottom_count = 0
-                        score += 10 * level
-                        draw_mino(dx, dy, mino, rotation)
-                        draw_board(next_mino, hold_mino, score, level, goal)
-                        if is_stackable(next_mino):
-                            mino = next_mino
-                            next_mino = randint(1, 7)
-                            dx, dy = 3, 0
-                            rotation = 0
-                            hold = False
-                        else:
-                            start = False
-                            game_over = True
-                            pygame.time.set_timer(pygame.USEREVENT, 1)
-                    else:
-                        bottom_count += 1
-
-                # Erase line
-                erase_count = 0
-                for j in range(21):
-                    is_full = True
-                    for i in range(10):
-                        if matrix[i][j] == 0:
-                            is_full = False
-                    if is_full:
-                        erase_count += 1
-                        k = j
-                        while k > 0:
-                            for i in range(10):
-                                matrix[i][k] = matrix[i][k - 1]
-                            k -= 1
-                if erase_count == 1:
-                    UIVariables.single_sound.play()
-                    score += 50 * level
-                elif erase_count == 2:
-                    UIVariables.double_sound.play()
-                    score += 150 * level
-                elif erase_count == 3:
-                    UIVariables.triple_sound.play()
-                    score += 350 * level
-                elif erase_count == 4:
-                    UIVariables.tetris_sound.play()
-                    score += 1000 * level
-
-                # Increase level
-                goal -= erase_count
-                if goal < 1 and level < 15:
-                    level += 1
-                    goal += level * 5
-                    framerate = int(framerate * 0.8)
-
-            elif event.type == KEYDOWN:
-                erase_mino(dx, dy, mino, rotation)
-                if event.key == K_ESCAPE:
-                    UIVariables.click_sound.play()
-                    pause = True
-                # Hard drop
-                elif event.key == K_SPACE:
-                    UIVariables.drop_sound.play()
-                    while not is_bottom(dx, dy, mino, rotation):
-                        dy += 1
-                    hard_drop = True
-                    pygame.time.set_timer(pygame.USEREVENT, 1)
-                    draw_mino(dx, dy, mino, rotation)
-                    draw_board(next_mino, hold_mino, score, level, goal)
-                # Hold
-                elif event.key == K_LSHIFT or event.key == K_c:
-                    if hold == False:
-                        UIVariables.move_sound.play()
-                        if hold_mino == -1:
-                            hold_mino = mino
-                            mino = next_mino
-                            next_mino = randint(1, 7)
-                        else:
-                            hold_mino, mino = mino, hold_mino
-                        dx, dy = 3, 0
-                        rotation = 0
-                        hold = True
-                    draw_mino(dx, dy, mino, rotation)
-                    draw_board(next_mino, hold_mino, score, level, goal)
-                # Turn right
-                elif event.key == K_UP or event.key == K_x:
-                    if is_turnable_r(dx, dy, mino, rotation):
-                        UIVariables.move_sound.play()
-                        rotation += 1
-                    # Kick
-                    elif is_turnable_r(dx, dy - 1, mino, rotation):
-                        UIVariables.move_sound.play()
-                        dy -= 1
-                        rotation += 1
-                    elif is_turnable_r(dx + 1, dy, mino, rotation):
-                        UIVariables.move_sound.play()
-                        dx += 1
-                        rotation += 1
-                    elif is_turnable_r(dx - 1, dy, mino, rotation):
-                        UIVariables.move_sound.play()
-                        dx -= 1
-                        rotation += 1
-                    elif is_turnable_r(dx, dy - 2, mino, rotation):
-                        UIVariables.move_sound.play()
-                        dy -= 2
-                        rotation += 1
-                    elif is_turnable_r(dx + 2, dy, mino, rotation):
-                        UIVariables.move_sound.play()
-                        dx += 2
-                        rotation += 1
-                    elif is_turnable_r(dx - 2, dy, mino, rotation):
-                        UIVariables.move_sound.play()
-                        dx -= 2
-                        rotation += 1
-                    if rotation == 4:
-                        rotation = 0
-                    draw_mino(dx, dy, mino, rotation)
-                    draw_board(next_mino, hold_mino, score, level, goal)
-                # Turn left
-                elif event.key == K_z or event.key == K_LCTRL:
-                    if is_turnable_l(dx, dy, mino, rotation):
-                        UIVariables.move_sound.play()
-                        rotation -= 1
-                    # Kick
-                    elif is_turnable_l(dx, dy - 1, mino, rotation):
-                        UIVariables.move_sound.play()
-                        dy -= 1
-                        rotation -= 1
-                    elif is_turnable_l(dx + 1, dy, mino, rotation):
-                        UIVariables.move_sound.play()
-                        dx += 1
-                        rotation -= 1
-                    elif is_turnable_l(dx - 1, dy, mino, rotation):
-                        UIVariables.move_sound.play()
-                        dx -= 1
-                        rotation -= 1
-                    elif is_turnable_l(dx, dy - 2, mino, rotation):
-                        UIVariables.move_sound.play()
-                        dy -= 2
-                        rotation += 1
-                    elif is_turnable_l(dx + 2, dy, mino, rotation):
-                        UIVariables.move_sound.play()
-                        dx += 2
-                        rotation += 1
-                    elif is_turnable_l(dx - 2, dy, mino, rotation):
-                        UIVariables.move_sound.play()
-                        dx -= 2
-                    if rotation == -1:
-                        rotation = 3
-                    draw_mino(dx, dy, mino, rotation)
-                    draw_board(next_mino, hold_mino, score, level, goal)
-                # Move left
-                elif event.key == K_LEFT:
-                    if not is_leftedge(dx, dy, mino, rotation):
-                        UIVariables.move_sound.play()
-                        dx -= 1
-                    draw_mino(dx, dy, mino, rotation)
-                    draw_board(next_mino, hold_mino, score, level, goal)
-                # Move right
-                elif event.key == K_RIGHT:
-                    if not is_rightedge(dx, dy, mino, rotation):
-                        UIVariables.move_sound.play()
-                        dx += 1
-                    draw_mino(dx, dy, mino, rotation)
-                    draw_board(next_mino, hold_mino, score, level, goal)
-
-        pygame.display.update()
-
-    # Game over screen
-    elif game_over:
-        for event in pygame.event.get():
-            if event.type == QUIT:
-                done = True
-            elif event.type == USEREVENT:
-                pygame.time.set_timer(pygame.USEREVENT, 300)
-
-                # TODO: show statistics screen
-                draw_board(next_mino, hold_mino, score, level, goal)
-
-                # Show "Game over"
-                over_text_1 = UIVariables.h2_b.render("GAME", 1, UIVariables.white)
-                over_text_2 = UIVariables.h2_b.render("OVER", 1, UIVariables.white)
-                screen.blit(over_text_1, (58, 75))
-                screen.blit(over_text_2, (62, 105))
-
-                over_start = UIVariables.h5.render("Press return to exit", 1, UIVariables.white)
-                if blink:
-                    screen.blit(over_start, (32, 195))
-                    blink = False
-                else:
-                    blink = True
-                pygame.display.update()
-            elif event.type == KEYDOWN:
-                if event.key == K_RETURN:
-                    UIVariables.click_sound.play()
-
-                    outfile = open('leaderboard.txt','a')
-                    outfile.write(chr(name[0]) + chr(name[1]) + chr(name[2]) + ' ' + str(score) + '\n')
-                    outfile.close()
-
-                    game_over = False
-                    hold = False
-                    dx, dy = 3, 0
-                    rotation = 0
-                    mino = randint(1, 7)
-                    next_mino = randint(1, 7)
-                    hold_mino = -1
-                    framerate = 30
-                    score = 0
-                    score = 0
-                    level = 1
-                    goal = level * 5
-                    bottom_count = 0
-                    hard_drop = False
-                    name_location = 0
-                    name = [65, 65, 65]
-                    matrix = [[0 for y in range(height + 1)] for x in range(width)]
-
-                    with open('leaderboard.txt') as f:
-                        lines = f.readlines()
-                    lines = [line.rstrip('\n') for line in open('leaderboard.txt')]
-
-                    leaders = {'AAA': 0, 'BBB': 0, 'CCC': 0}
-                    for i in lines:
-                        leaders[i.split(' ')[0]] = int(i.split(' ')[1])
-                    leaders = sorted(leaders.items(), key=operator.itemgetter(1), reverse=True)
-
-                    pygame.time.set_timer(pygame.USEREVENT, 1)
-                elif event.key == K_RIGHT:
-                    if name_location != 2:
-                        name_location += 1
-                    else:
-                        name_location = 0
-                    pygame.time.set_timer(pygame.USEREVENT, 1)
-                elif event.key == K_LEFT:
-                    if name_location != 0:
-                        name_location -= 1
-                    else:
-                        name_location = 2
-                    pygame.time.set_timer(pygame.USEREVENT, 1)
-                elif event.key == K_UP:
-                    UIVariables.click_sound.play()
-                    if name[name_location] != 90:
-                        name[name_location] += 1
-                    else:
-                        name[name_location] = 65
-                    pygame.time.set_timer(pygame.USEREVENT, 1)
-                elif event.key == K_DOWN:
-                    UIVariables.click_sound.play()
-                    if name[name_location] != 65:
-                        name[name_location] -= 1
-                    else:
-                        name[name_location] = 90
-                    pygame.time.set_timer(pygame.USEREVENT, 1)
-
-# TODO: When game is done
 pygame.quit()
+
