@@ -2,15 +2,11 @@
 # PYTRIS™ Copyright (c) 2017 Jason Kim All Rights Reserved.
 
 import pygame
-import operator
-from src.gui.mino import *
-from random import *
-from pygame.locals import *
-from src.global_engine import *
-from src.engine import *
+from src.gui.mino import Tetrimino
 
 
 pygame.init()
+
 
 class UIVariables:
     block_size = 17  # Height, width of single block
@@ -51,7 +47,7 @@ class UIVariables:
 
     t_color = [grey_2, cyan, blue, orange, yellow, green, pink, red, grey_3]
 
-    
+
 class GUI:
     # Get global engine and setup gui
     def __init__(self, global_state):
@@ -75,12 +71,12 @@ class GUI:
         pygame.draw.rect(
             self.screen,
             color,
-            Rect(x, y, UIVariables.block_size, UIVariables.block_size)
+            pygame.Rect(x, y, UIVariables.block_size, UIVariables.block_size)
         )
         pygame.draw.rect(
             self.screen,
             UIVariables.grey_1,
-            Rect(x, y, UIVariables.block_size, UIVariables.block_size),
+            pygame.Rect(x, y, UIVariables.block_size, UIVariables.block_size),
             1
         )
 
@@ -93,17 +89,17 @@ class GUI:
         pygame.draw.rect(
             self.screen,
             UIVariables.white,
-            Rect(0, 0, 96, 374)
+            pygame.Rect(0, 0, 96, 374)
         )
         # Draw sidebar 2
         pygame.draw.rect(
             self.screen,
             UIVariables.white,
-            Rect(504, 0, 96, 374)
+            pygame.Rect(504, 0, 96, 374)
         )
 
         # Draw next mino 1
-        grid_n1 = tetrimino.mino_map[self.global_state.engines[0].next_shape - 1][0]
+        grid_n1 = Tetrimino.mino_map[self.global_state.engines[0].next_shape - 1][0]
         for i in range(4):
             for j in range(4):
                 dx = 20 + UIVariables.block_size * j
@@ -112,10 +108,10 @@ class GUI:
                     pygame.draw.rect(
                         self.screen,
                         UIVariables.t_color[grid_n1[i][j]],
-                        Rect(dx, dy, UIVariables.block_size, UIVariables.block_size)
+                        pygame.Rect(dx, dy, UIVariables.block_size, UIVariables.block_size)
                     )
         # Draw next mino 2
-        grid_n2 = tetrimino.mino_map[self.global_state.engines[1].next_shape - 1][0]
+        grid_n2 = Tetrimino.mino_map[self.global_state.engines[1].next_shape - 1][0]
         for i in range(4):
             for j in range(4):
                 dx = 520 + UIVariables.block_size * j
@@ -124,11 +120,11 @@ class GUI:
                     pygame.draw.rect(
                         self.screen,
                         UIVariables.t_color[grid_n2[i][j]],
-                        Rect(dx, dy, UIVariables.block_size, UIVariables.block_size)
+                        pygame.Rect(dx, dy, UIVariables.block_size, UIVariables.block_size)
                     )
 
         # Draw hold mino 1
-        grid_h1 = tetrimino.mino_map[self.global_state.engines[0].hold_shape - 1][0]
+        grid_h1 = Tetrimino.mino_map[self.global_state.engines[0].hold_shape - 1][0]
         if self.global_state.engines[0].holded:
             for i in range(4):
                 for j in range(4):
@@ -138,10 +134,10 @@ class GUI:
                         pygame.draw.rect(
                             self.screen,
                             UIVariables.t_color[grid_h1[i][j]],
-                            Rect(dx, dy, UIVariables.block_size, UIVariables.block_size)
+                            pygame.Rect(dx, dy, UIVariables.block_size, UIVariables.block_size)
                         )
         # Draw hold mino 2
-        grid_h2 = tetrimino.mino_map[self.global_state.engines[1].hold_shape - 1][0]
+        grid_h2 = Tetrimino.mino_map[self.global_state.engines[1].hold_shape - 1][0]
         if self.global_state.engines[1].holded:
             for i in range(4):
                 for j in range(4):
@@ -151,18 +147,22 @@ class GUI:
                         pygame.draw.rect(
                             self.screen,
                             UIVariables.t_color[grid_h2[i][j]],
-                            Rect(dx, dy, UIVariables.block_size, UIVariables.block_size)
+                            pygame.Rect(dx, dy, UIVariables.block_size, UIVariables.block_size)
                         )
 
         # Draw texts
         text_hold = UIVariables.h5.render("HOLD", 1, UIVariables.black)
         text_next = UIVariables.h5.render("NEXT", 1, UIVariables.black)
         text_score = UIVariables.h5.render("SCORE", 1, UIVariables.black)
-        score1_value = UIVariables.h4.render(str(self.global_state.engines[0].score), 1, UIVariables.black)
-        score2_value = UIVariables.h4.render(str(self.global_state.engines[1].score), 1, UIVariables.black)
+        score1_value = UIVariables.h4.render(str(self.global_state.engines[0].score),
+                                             1, UIVariables.black)
+        score2_value = UIVariables.h4.render(str(self.global_state.engines[1].score),
+                                             1, UIVariables.black)
         text_lines = UIVariables.h5.render("Total cleared lines", 1, UIVariables.black)
-        lines1_value = UIVariables.h4.render(str(self.global_state.engines[0].total_cleared_lines), 1, UIVariables.black)
-        lines2_value = UIVariables.h4.render(str(self.global_state.engines[1].total_cleared_lines), 1, UIVariables.black)
+        lines1_value = UIVariables.h4.render(str(self.global_state.engines[0].total_cleared_lines),
+                                             1, UIVariables.black)
+        lines2_value = UIVariables.h4.render(str(self.global_state.engines[1].total_cleared_lines),
+                                             1, UIVariables.black)
         text_ko = UIVariables.h5.render("KO's", 1, UIVariables.black)
         ko1_value = UIVariables.h4.render(str(self.global_state.engines[0].n_deaths), 1, UIVariables.black)
         ko2_value = UIVariables.h4.render(str(self.global_state.engines[1].n_deaths), 1, UIVariables.black)
@@ -206,9 +206,9 @@ class GUI:
         # Pause screen
         if self.pause:
             for event in pygame.event.get():
-                if event.type == QUIT:
+                if event.type == pygame.QUIT:
                     self.done = True
-                elif event.type == USEREVENT:
+                elif event.type == pygame.USEREVENT:
                     pygame.time.set_timer(pygame.USEREVENT, 300)
                     self.draw_board()
 
@@ -223,20 +223,20 @@ class GUI:
                         self.blink = True
                     pygame.display.update()
                 elif event.type == pygame.KEYDOWN:
-                    if event.key == K_ESCAPE:
+                    if event.key == pygame.K_ESCAPE:
                         self.pause = False
                         pygame.time.set_timer(pygame.USEREVENT, 1)
 
         # Game screen
         elif self.start:
             for event in pygame.event.get():
-                if event.type == QUIT:
+                if event.type == pygame.QUIT:
                     self.done = True
-                elif event.type == USEREVENT:
+                elif event.type == pygame.USEREVENT:
                     # Set speed
                     if not self.done:
                         keys_pressed = pygame.key.get_pressed()
-                        if keys_pressed[K_DOWN]:
+                        if keys_pressed[pygame.K_DOWN]:
                             pygame.time.set_timer(pygame.USEREVENT, UIVariables.framerate * 1)
                         else:
                             pygame.time.set_timer(pygame.USEREVENT, UIVariables.framerate * 10)
@@ -250,9 +250,9 @@ class GUI:
         # Game over screen
         elif self.game_over:
             for event in pygame.event.get():
-                if event.type == QUIT:
+                if event.type == pygame.QUIT:
                     self.done = True
-                elif event.type == USEREVENT:
+                elif event.type == pygame.USEREVENT:
                     pygame.time.set_timer(pygame.USEREVENT, 300)
 
                     # TODO: show statistics screen
@@ -272,11 +272,9 @@ class GUI:
                         self.blink = True
                     pygame.display.update()
                 elif event.type == pygame.KEYDOWN:
-                    keys_pressed = pygame.key.get_pressed()
+                    if event.key == pygame.K_ESCAPE:
+                        pygame.quit()
 
-
-while not done:
-    # Update the gui depending on the framerate
-    pygame.time.wait(UIVariables.framerate)
-pygame.quit()
-
+    while True:
+        # Update the gui depending on the framerate
+        pygame.time.wait(UIVariables.framerate)
