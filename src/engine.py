@@ -169,7 +169,7 @@ class TetrisEngine:
             if action != 3:
                 self.shape, self.anchor = soft_drop(self.shape, self.anchor, self.board)
             if self._has_dropped():
-                self._set_piece(True)
+                self.board = self.set_piece(self.shape, self.anchor, self.board, True)
                 cleared_lines, self.board = self.clear_lines()
                 self.score += cleared_lines
                 self.total_cleared_lines += cleared_lines
@@ -188,9 +188,9 @@ class TetrisEngine:
         self.time += 1
         self.drop_count += 1
 
-        self._set_piece(True)
+        self.board = self.set_piece(self.shape, self.anchor, self.board, True)
         state = np.copy(self.board)
-        self._set_piece(False)
+        self.board = self.set_piece(self.shape, self.anchor, self.board, False)
         self._update_states()
         return state, reward, done, cleared_lines
 
@@ -202,11 +202,12 @@ class TetrisEngine:
 
         return self.board
 
-    def _set_piece(self, on=False):
-        for i, j in self.shape:
-            x, y = i + self.anchor[0], j + self.anchor[1]
+    def set_piece(self, shape, anchor, board, on=False):
+        for i, j in shape:
+            x, y = i + anchor[0], j + anchor[1]
             if x < self.width and x >= 0 and y < self.height and y >= 0:
-                self.board[self.anchor[0] + i, self.anchor[1] + j] = on
+                board[anchor[0] + i, anchor[1] + j] = on
+        return board
 
     def __repr__(self):
         self._set_piece(True)
@@ -288,6 +289,6 @@ class TetrisEngine:
                         final_shape, final_anchor = right(final_shape, final_anchor, board)
                     if i < 0:
                         final_shape, final_anchor = left(final_shape, final_anchor, board)
+                final_shape, final_anchor = hard_drop(final_shape, final_anchor, board)
                 action_name = f"move_{move}_right_rotate_{rotate}"
                 action_state_dict[action_name] = board
-
