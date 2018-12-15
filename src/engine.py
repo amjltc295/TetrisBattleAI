@@ -290,5 +290,6 @@ class TetrisEngine:
                     if i < 0:
                         final_shape, final_anchor = left(final_shape, final_anchor, board)
                 final_shape, final_anchor = hard_drop(final_shape, final_anchor, board)
+                final_board = self.set_piece(final_shape, final_anchor, board, True)
                 action_name = f"move_{move}_right_rotate_{rotate}"
-                action_state_dict[action_name] = board
+                action_state_dict[action_name] = final_board
