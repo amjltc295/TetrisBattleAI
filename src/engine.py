@@ -275,3 +275,20 @@ class TetrisEngine:
             except Exception:
                 self.anchor = (self.anchor[0], self.anchor[1] - 1)
         return self.shape, self.anchor
+
+    def get_valid_final_states(self, shape, anchor, board):
+        # Reference https://github.com/brendanberg01/TetrisAI/blob/master/ai.py
+        action_state_dict = {}
+        for move in range(-self.width // 2, self.width // 2):
+            for rotate in range(0, 3):
+                final_shape, final_anchor = shape, anchor
+                for i in rotate:
+                    final_shape, final_anchor = rotate_right(final_shape, final_anchor, board)
+                for i in move:
+                    if i > 0:
+                        final_shape, final_anchor = right(final_shape, final_anchor, board)
+                    if i < 0:
+                        final_shape, final_anchor = left(final_shape, final_anchor, board)
+                action_name = f"move_{move}_right_rotate_{rotate}"
+                action_state_dict[action_name] = board
+
