@@ -132,18 +132,16 @@ class TetrisEngine:
     def _has_dropped(self):
         return is_occupied(self.shape, (self.anchor[0], self.anchor[1] + 1), self.board)
 
-    def _clear_lines(self):
-        can_clear = [True if sum(self.board[:, i]) == self.width else False for i in range(self.height)]
-        new_board = np.zeros_like(self.board)
+    def clear_lines(self, board):
+        can_clear = [True if sum(board[:, i]) == self.width else False for i in range(self.height)]
+        new_board = np.zeros_like(board)
         j = self.height - 1
         for i in range(self.height - 1, -1, -1):
             if not can_clear[i]:
-                new_board[:, j] = self.board[:, i]
+                new_board[:, j] = board[:, i]
                 j -= 1
-        self.score += sum(can_clear)
-        self.board = new_board
 
-        return sum(can_clear)
+        return sum(can_clear), new_board
 
     def valid_action_count(self):
         valid_action_sum = 0
@@ -172,7 +170,8 @@ class TetrisEngine:
                 self.shape, self.anchor = soft_drop(self.shape, self.anchor, self.board)
             if self._has_dropped():
                 self._set_piece(True)
-                cleared_lines = self._clear_lines()
+                cleared_lines, self.board = self.clear_lines()
+                self.score += cleared_lines
                 self.total_cleared_lines += cleared_lines
                 reward += cleared_lines * 10
                 if np.any(self.board[:, 0]):
