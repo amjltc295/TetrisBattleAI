@@ -61,7 +61,7 @@ class GUI:
         self.done = False
 
         self.screen_width = 600
-        self.screen_height = 374
+        self.screen_height = 400
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
         pygame.time.set_timer(pygame.USEREVENT, UIVariables.framerate * 10)
         pygame.display.set_caption("Make Tetris Great Again")
@@ -80,129 +80,106 @@ class GUI:
             1
         )
 
-    # Draw game screen
-    def draw_board(self):
-        # Background gray
-        self.screen.fill(UIVariables.grey_1)
+    def global_to_gui_number(self, number):
+        if number <= 6:
+            return number
+        else:
+            return 6
 
-        # Draw sidebar 1
+    # Draw board of one player
+    def draw_board(self, x_start, y_start, player_id):
+        board = self.global_state.engines[player_id].board
+        for x in range(self.global_state.width):
+            for y in range(self.global_state.height):
+                dx = x_start + UIVariables.block_size * x
+                dy = y_start + UIVariables.block_size * y
+                self.draw_block(dx, dy, UIVariables.t_color[board[x][y + 1]])
+
+    # Draw score bar for one player
+    def draw_score(self, x_start, y_start, player_id):
+        # Draw sidebar
         pygame.draw.rect(
             self.screen,
             UIVariables.white,
-            pygame.Rect(0, 0, 96, 374)
+            pygame.Rect(x_start, y_start, x_start + 96, y_start + 400)
         )
-        # Draw sidebar 2
-        pygame.draw.rect(
-            self.screen,
-            UIVariables.white,
-            pygame.Rect(504, 0, 96, 374)
-        )
-
-        # Draw next mino 1
-        grid_n1 = Tetrimino.mino_map[self.global_state.engines[0].next_shape - 1][0]
-        for i in range(4):
-            for j in range(4):
-                dx = 20 + UIVariables.block_size * j
-                dy = 140 + UIVariables.block_size * i
-                if grid_n1[i][j] != 0:
-                    pygame.draw.rect(
-                        self.screen,
-                        UIVariables.t_color[grid_n1[i][j]],
-                        pygame.Rect(dx, dy, UIVariables.block_size, UIVariables.block_size)
-                    )
-        # Draw next mino 2
-        grid_n2 = Tetrimino.mino_map[self.global_state.engines[1].next_shape - 1][0]
-        for i in range(4):
-            for j in range(4):
-                dx = 520 + UIVariables.block_size * j
-                dy = 140 + UIVariables.block_size * i
-                if grid_n2[i][j] != 0:
-                    pygame.draw.rect(
-                        self.screen,
-                        UIVariables.t_color[grid_n2[i][j]],
-                        pygame.Rect(dx, dy, UIVariables.block_size, UIVariables.block_size)
-                    )
-
-        # Draw hold mino 1
-        grid_h1 = Tetrimino.mino_map[self.global_state.engines[0].hold_shape - 1][0]
-        if self.global_state.engines[0].holded:
-            for i in range(4):
-                for j in range(4):
-                    dx = 20 + UIVariables.block_size * j
-                    dy = 50 + UIVariables.block_size * i
-                    if grid_h1[i][j] != 0:
-                        pygame.draw.rect(
-                            self.screen,
-                            UIVariables.t_color[grid_h1[i][j]],
-                            pygame.Rect(dx, dy, UIVariables.block_size, UIVariables.block_size)
-                        )
-        # Draw hold mino 2
-        grid_h2 = Tetrimino.mino_map[self.global_state.engines[1].hold_shape - 1][0]
-        if self.global_state.engines[1].holded:
-            for i in range(4):
-                for j in range(4):
-                    dx = 20 + UIVariables.block_size * j
-                    dy = 50 + UIVariables.block_size * i
-                    if grid_h2[i][j] != 0:
-                        pygame.draw.rect(
-                            self.screen,
-                            UIVariables.t_color[grid_h2[i][j]],
-                            pygame.Rect(dx, dy, UIVariables.block_size, UIVariables.block_size)
-                        )
 
         # Draw texts
         text_hold = UIVariables.h5.render("HOLD", 1, UIVariables.black)
         text_next = UIVariables.h5.render("NEXT", 1, UIVariables.black)
         text_score = UIVariables.h5.render("SCORE", 1, UIVariables.black)
-        score1_value = UIVariables.h4.render(str(self.global_state.engines[0].score),
-                                             1, UIVariables.black)
-        score2_value = UIVariables.h4.render(str(self.global_state.engines[1].score),
-                                             1, UIVariables.black)
+        score_value = UIVariables.h4.render(str(self.global_state.engines[player_id].score)
+                                            , 1, UIVariables.black)
         text_lines = UIVariables.h5.render("Total cleared lines", 1, UIVariables.black)
-        lines1_value = UIVariables.h4.render(str(self.global_state.engines[0].total_cleared_lines),
-                                             1, UIVariables.black)
-        lines2_value = UIVariables.h4.render(str(self.global_state.engines[1].total_cleared_lines),
-                                             1, UIVariables.black)
+        lines_value = UIVariables.h4.render(str(self.global_state.engines[player_id].total_cleared_lines)
+                                            , 1, UIVariables.black)
         text_ko = UIVariables.h5.render("KO's", 1, UIVariables.black)
-        ko1_value = UIVariables.h4.render(str(self.global_state.engines[0].n_deaths), 1, UIVariables.black)
-        ko2_value = UIVariables.h4.render(str(self.global_state.engines[1].n_deaths), 1, UIVariables.black)
+        ko_value = UIVariables.h4.render(str(self.global_state.engines[player_id].n_deaths)
+                                         , 1, UIVariables.black)
 
         # Place texts
-        self.screen.blit(text_hold, (15, 14))
-        self.screen.blit(text_hold, (515, 14))
-        self.screen.blit(text_next, (15, 104))
-        self.screen.blit(text_next, (515, 104))
-        self.screen.blit(text_score, (15, 194))
-        self.screen.blit(text_score, (515, 194))
-        self.screen.blit(score1_value, (20, 210))
-        self.screen.blit(score2_value, (520, 210))
-        self.screen.blit(text_lines, (15, 254))
-        self.screen.blit(text_lines, (515, 254))
-        self.screen.blit(lines1_value, (20, 270))
-        self.screen.blit(lines2_value, (520, 270))
-        self.screen.blit(text_ko, (15, 314))
-        self.screen.blit(text_ko, (515, 314))
-        self.screen.blit(ko1_value, (20, 330))
-        self.screen.blit(ko2_value, (520, 330))
+        self.screen.blit(text_hold, (x_start + 15, y_start + 14))
+        self.screen.blit(text_next, (x_start + 15, y_start + 104))
+        self.screen.blit(text_score, (x_start + 15, y_start + 194))
+        self.screen.blit(score_value, (x_start + 20, y_start + 210))
+        self.screen.blit(text_lines, (x_start + 15, y_start + 254))
+        self.screen.blit(lines_value, (x_start + 20, y_start + 270))
+        self.screen.blit(text_ko, (x_start + 15, y_start + 314))
+        self.screen.blit(ko_value, (x_start + 20, y_start + 330))
 
-        # Draw board 1
-        for x in range(self.global_state.width):
-            for y in range(self.global_state.height):
-                dx = 17 + UIVariables.block_size * x
-                dy = 17 + UIVariables.block_size * y
-                self.draw_block(dx, dy, UIVariables.t_color[self.global_state.engines[0].board[x][y + 1]])
-        # Draw board 2
-        for x in range(self.global_state.width):
-            for y in range(self.global_state.height):
-                dx = 317 + UIVariables.block_size * x
-                dy = 317 + UIVariables.block_size * y
-                self.draw_block(dx, dy, UIVariables.t_color[self.global_state.engines[1].board[x][y + 1]])
+    # Draw next mino for one player
+    def draw_next_mino(self, x_start, y_start, player_id):
+        next_mino = self.global_state.engines[player_id].next_shape
+        grid_n = Tetrimino.mino_map[next_mino][0]
+        for i in range(4):
+            for j in range(4):
+                dx = x_start + 20 + UIVariables.block_size * j
+                dy = y_start + 140 + UIVariables.block_size * i
+                if grid_n[i][j] != 0:
+                    pygame.draw.rect(
+                        self.screen,
+                        UIVariables.t_color[grid_n[i][j]],
+                        pygame.Rect(dx, dy, UIVariables.block_size, UIVariables.block_size)
+                    )
+
+    # Draw hold mino for one player
+    def draw_hold_mino(self, x_start, y_start, player_id):
+        if self.global_state.engines[player_id].holded:
+            hold_mino = self.global_state.engines[player_id].hold_shape
+            grid_h = Tetrimino.mino_map[hold_mino][0]
+            for i in range(4):
+                for j in range(4):
+                    dx = x_start + 20 + UIVariables.block_size * j
+                    dy = y_start + 50 + UIVariables.block_size * i
+                    if grid_h[i][j] != 0:
+                        pygame.draw.rect(
+                            self.screen,
+                            UIVariables.t_color[grid_h[i][j]],
+                            pygame.Rect(dx, dy, UIVariables.block_size, UIVariables.block_size)
+                        )
+
+    # Draw game screen of one player
+    def draw_one_screen(self, x_start, y_start, player_id):
+        # Background gray
+        self.screen.fill(UIVariables.grey_1)
+
+        # Draw score bar
+        self.draw_score(x_start, y_start, player_id)    # TODO
+
+        # Draw next mino
+        self.draw_next_mino(x_start, y_start, player_id)
+
+        # Draw hold mino
+        self.draw_hold_mino(x_start, y_start, player_id)
+
+        # Draw board
+        self.draw_board(x_start, y_start, player_id)    # TODO
 
     # TODO
     def draw_statistics(self):
                 return
 
-    def draw_screen(self):
+    def draw_whole_screen(self):
         # Pause screen
         if self.pause:
             for event in pygame.event.get():
@@ -278,3 +255,4 @@ class GUI:
     while True:
         # Update the gui depending on the framerate
         pygame.time.wait(UIVariables.framerate)
+        draw_whole_screen()
