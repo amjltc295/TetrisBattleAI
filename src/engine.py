@@ -170,7 +170,7 @@ class TetrisEngine:
                 self.shape, self.anchor = soft_drop(self.shape, self.anchor, self.board)
             if self._has_dropped():
                 self.board = self.set_piece(self.shape, self.anchor, self.board, True)
-                cleared_lines, self.board = self.clear_lines()
+                cleared_lines, self.board = self.clear_lines(self.board)
                 self.score += cleared_lines
                 self.total_cleared_lines += cleared_lines
                 reward += cleared_lines * 10
@@ -210,7 +210,7 @@ class TetrisEngine:
         return board
 
     def __repr__(self):
-        self._set_piece(True)
+        self.board = self.set_piece(self.shape, self.anchor, self.board, True)
         s = f"Hold: {self.hold_shape_name}\n"
         s += f"Next: {self.next_shape_name}\n"
         s += 'o' + '-' * self.width + 'o'
@@ -227,7 +227,7 @@ class TetrisEngine:
             s += "".join(display_line)
 
         s += '\no' + '-' * self.width + 'o\n'
-        self._set_piece(False)
+        self.board = self.set_piece(self.shape, self.anchor, self.board, False)
         return s
 
     def receive_bomb_lines(self, bomb_lines):
