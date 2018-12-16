@@ -1,7 +1,19 @@
+import argparse
 import curses
 import time
 
 from engine import TetrisEngine
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-ww', '--width', type=int, default=10, help='Window width')
+    parser.add_argument('-hh', '--height', type=int, default=16, help='Window height')
+    parser.add_argument('-n', '--player_num', type=int, default=2, help='Number of players')
+    parser.add_argument('-f', '--step_to_final', default=False, action='store_true',
+                        help='One step to the final location')
+    args = parser.parse_args()
+    return args
 
 
 class GlobalEngine:
@@ -23,6 +35,34 @@ class GlobalEngine:
 
         self.global_state = {}
         self.engine_states = {}
+
+    def setup(self):
+        # Initialization
+
+        self.stdscr = curses.initscr()
+
+        # Store play information
+        self.dbs = {}
+
+        self.done = False
+
+        for i in range(self.player_num):
+            # Initial rendering
+            self.stdscr.addstr(str(self.engines[i]))
+            self.engine_states[i] = {
+                "KO": 0,
+                "reward": 0,
+                "lines_sent": 0,
+                "hold_shape": None,
+                "hold_shape_name": None,
+                "holded": False,
+                "bomb_lines": 0,
+                "highest_line": 0
+            }
+            # Initialize dbs
+            self.dbs[i] = []
+
+        self.start_time = time.time()
 
     def keyboard_control(self, key):
         if key == ord('a'):  # Shift left
@@ -63,70 +103,64 @@ class GlobalEngine:
                 self.winner = idx
                 max_score = score
 
-    def play_game(self):
-        stdscr = curses.initscr()
+    def get_action(self, step_to_final):
+        if step_to_final:
+            move = chr(self.stdscr.getch())
+            if move == '-':
+                move += chr(self.stdscr.getch())
+            rotate = chr(self.stdscr.getch())
+            action = f"move_{move}_right_rotate_{rotate}"
+        else:
+            key = self.stdscr.getch()
+            action = self.keyboard_control(key)
+        return action
 
-        # Store play information
-        dbs = {}
-
-        done = False
-
+    def play_game(self, step_to_final=False):
         # Initialization
-        for i in range(self.player_num):
-            # Initial rendering
-            stdscr.addstr(str(self.engines[i]))
-            self.engine_states[i] = {
-                "KO": 0,
-                "reward": 0,
-                "lines_sent": 0,
-                "hold_shape": None,
-                "hold_shape_name": None,
-                "holded": False,
-                "bomb_lines": 0,
-                "highest_line": 0
-            }
-            # Initialize dbs
-            dbs[i] = []
-            # Global action
+        self.setup()
 
-        self.start_time = time.time()
         game_over = False
         while time.time() - self.start_time < self.game_time and not game_over:
-            key = stdscr.getch()
-            action = self.keyboard_control(key)
+            action = self.get_action(step_to_final)
 
-            stdscr.clear()
+            self.stdscr.clear()
             for idx, engine in self.engines.items():
                 # Game step
-                state, reward, done, cleared_lines = engine.step(action)
-                self.engine_states[idx]['lines_sent'] += cleared_lines
-                self.engine_states[idx]['bomb_lines'] = engine.bomb_lines
-                self.engine_states[idx]['highest_line'] = engine.highest_line
-                self.engine_states[idx]['holded'] = engine.holded
-                self.engine_states[idx]['hold_shape'] = engine.hold_shape
-                self.engine_states[idx]['hold_shape_name'] = engine.hold_shape_name
-                self.engine_states[idx]['shape_name'] = engine.shape_name
-                self.engine_states[idx]['next_shape_name'] = engine.next_shape_name
+                if step_to_final:
+                    state, reward, self.done, cleared_lines = engine.step_to_final(action)
+                else:
+                    state, reward, self.done, cleared_lines = engine.step(action)
+
+                # Update state
+                self.set_engine_state(idx, engine, reward, cleared_lines)
                 self.sent_lines(idx, cleared_lines)
-                self.engine_states[idx]['reward'] += reward
-                dbs[idx].append((state, reward, done, action))
+                self.dbs[idx].append((state, reward, self.done, action))
 
                 # Render
-                stdscr.addstr(str(engine))
-                stdscr.addstr(f'reward: {self.engine_states[idx]}\n')
+                self.stdscr.addstr(str(engine))
+                self.stdscr.addstr(f'reward: {self.engine_states[idx]}\n')
 
                 if self.engine_states[idx]['KO'] >= self.KO_num_to_win:
                     game_over = True
-            stdscr.addstr(f'Time: {time.time() - self.start_time:.1f}\n')
+            self.stdscr.addstr(f'Time: {time.time() - self.start_time:.1f}\n')
         self.compare_score()
         print(f"Winner: {self.winner} States: {self.engine_states}")
 
-        return dbs
+        return self.dbs
+
+    def set_engine_state(self, idx, engine, reward, cleared_lines):
+        self.engine_states[idx]['bomb_lines'] = engine.bomb_lines
+        self.engine_states[idx]['highest_line'] = engine.highest_line
+        self.engine_states[idx]['holded'] = engine.holded
+        self.engine_states[idx]['hold_shape'] = engine.hold_shape
+        self.engine_states[idx]['hold_shape_name'] = engine.hold_shape_name
+        self.engine_states[idx]['shape_name'] = engine.shape_name
+        self.engine_states[idx]['next_shape_name'] = engine.next_shape_name
+        self.engine_states[idx]['reward'] += reward
+        self.engine_states[idx]['lines_sent'] += cleared_lines
 
 
 if __name__ == '__main__':
-    width, height = 10, 16  # standard tetris friends rules
-    player_num = 2
-    global_engine = GlobalEngine(width, height, player_num)
-    dbs = global_engine.play_game()
-    # print(dbs)
+    args = parse_args()
+    global_engine = GlobalEngine(args.width, args.height, args.player_num)
+    dbs = global_engine.play_game(args.step_to_final)
