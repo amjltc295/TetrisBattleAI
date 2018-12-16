@@ -1,7 +1,19 @@
+import argparse
 import curses
 import time
 
 from engine import TetrisEngine
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-ww', '--width', type=int, default=10, help='Window width')
+    parser.add_argument('-hh', '--height', type=int, default=16, help='Window height')
+    parser.add_argument('-n', '--player_num', type=int, default=2, help='Number of players')
+    parser.add_argument('-f', '--step_to_final', default=False, action='store_true',
+                        help='One step to the final location')
+    args = parser.parse_args()
+    return args
 
 
 class GlobalEngine:
@@ -149,8 +161,6 @@ class GlobalEngine:
 
 
 if __name__ == '__main__':
-    width, height = 10, 16  # standard tetris friends rules
-    player_num = 2
-    global_engine = GlobalEngine(width, height, player_num)
-    dbs = global_engine.play_game()
-    # print(dbs)
+    args = parse_args()
+    global_engine = GlobalEngine(args.width, args.height, args.player_num)
+    dbs = global_engine.play_game(args.step_to_final)
