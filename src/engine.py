@@ -2,16 +2,28 @@
 
 import numpy as np
 import random
-
+# 
+import Heuristic
+# shapes = {
+#     'T': [(0, 0), (-1, 0), (1, 0), (0, -1)],
+#     'J': [(0, 0), (-1, 0), (0, -1), (0, -2)],
+#     'L': [(0, 0), (1, 0), (0, -1), (0, -2)],
+#     'Z': [(0, 0), (-1, 0), (0, -1), (1, -1)],
+#     'S': [(0, 0), (-1, -1), (0, -1), (1, 0)],
+#     'I': [(0, 0), (0, -1), (0, -2), (0, -3)],
+#     'O': [(0, 0), (0, -1), (-1, 0), (-1, -1)],
+# }
 shapes = {
-    'T': [(0, 0), (-1, 0), (1, 0), (0, -1)],
-    'J': [(0, 0), (-1, 0), (0, -1), (0, -2)],
-    'L': [(0, 0), (1, 0), (0, -1), (0, -2)],
-    'Z': [(0, 0), (-1, 0), (0, -1), (1, -1)],
-    'S': [(0, 0), (-1, -1), (0, -1), (1, 0)],
+    'T': [(0, 0), (0, -1), (-1, 0), (-1, -1)],
+    'J': [(0, 0), (0, -1), (-1, 0), (-1, -1)],
+    'L': [(0, 0), (0, -1), (-1, 0), (-1, -1)],
+    'Z': [(0, 0), (0, -1), (-1, 0), (-1, -1)],
+    'S': [(0, 0), (0, -1), (-1, 0), (-1, -1)],
     'I': [(0, 0), (0, -1), (0, -2), (0, -3)],
     'O': [(0, 0), (0, -1), (-1, 0), (-1, -1)],
 }
+# shapes = {k:[(0, 0), (-1, 0), (1, 0), (0, -1)] for k,v in shapes.items()}
+# shape_names = shapes.keys()
 shape_names = ['T', 'J', 'L', 'Z', 'S', 'I', 'O']
 
 
@@ -84,6 +96,14 @@ class TetrisEngine:
             5: rotate_right,
             6: idle,
         }
+#         self.value_action_map = {
+#             0: left,
+#             1: right,
+#             2: rotate_left,
+#             3: rotate_right,
+#             4: idle,
+#         }
+        
         self.action_value_map = dict([(j, i) for i, j in self.value_action_map.items()])
         self.nb_actions = len(self.value_action_map)
 
@@ -98,6 +118,7 @@ class TetrisEngine:
         self._shape_counts = [0] * len(shapes)
 
         # clear after initializing
+        self.pre_state = None
         self.clear()
 
     def _choose_shape(self):
@@ -151,31 +172,46 @@ class TetrisEngine:
 
         # Update time and reward
         self.time += 1
-        reward = self.valid_action_count()
-        #reward = 1
-
+#         reward = self.valid_action_count()
+        reward = 0
+        clear_lines = 0
+        cl = 0
         done = False
-        if self._has_dropped():
+        drop = self._has_dropped()
+        if drop:
             self._set_piece(True)
-            reward += 10 * self._clear_lines()
+            cl = self._clear_lines()
+            clear_lines += cl
+            reward += 100 * clear_lines
             if np.any(self.board[:, 0]):
                 self.clear()
                 self.n_deaths += 1
                 done = True
-                reward = -10
+                reward = -100
             else:
+                
                 self._new_piece()
 
         self._set_piece(True)
         state = np.copy(self.board)
         self._set_piece(False)
+#         
+        if drop:
+#             reward = Heuristic.heuristic_fn(state, cl) - Heuristic.heuristic_fn(self.pre_state, 0)
+            reward = Heuristic.heuristic_fn(state, cl)
+            
+            self.pre_state = state
+        if done:
+            reward = -100
+        
         return state, reward, done
-
     def clear(self):
         self.time = 0
         self.score = 0
         self._new_piece()
         self.board = np.zeros_like(self.board)
+#         
+        self.pre_state = np.copy(self.board)
 
         return self.board
 
