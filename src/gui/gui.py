@@ -146,8 +146,9 @@ class GUI:
 
     # Draw hold mino for one player
     def _draw_hold_mino(self, x_start, y_start, player_id):
-        if self.global_state.engines[player_id].holded:
-            hold_mino = UIVariables.shape_names.index(self.global_state.engines[player_id].hold_shape_name)
+        hold_mino_name = self.global_state.engines[player_id].hold_shape_name
+        if hold_mino_name is not None:
+            hold_mino = UIVariables.shape_names.index(hold_mino_name)
             grid_h = Tetrimino.mino_map[hold_mino][0]
             for i in range(4):
                 for j in range(4):
