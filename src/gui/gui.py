@@ -2,7 +2,7 @@
 # PYTRIS™ Copyright (c) 2017 Jason Kim All Rights Reserved.
 
 import pygame
-from src.gui.mino import Tetrimino
+from gui.mino import Tetrimino
 
 running_gui = None
 
@@ -86,7 +86,7 @@ class GUI:
 
     # Draw board of one player
     def _draw_board(self, x_start, y_start, player_id):
-        board = self.global_state.engines[player_id].board
+        board = self.global_state.engines[player_id].get_board()
         for x in range(self.global_state.width):
             for y in range(self.global_state.height):
                 dx = x_start + 4 * self.block_size + 40 + self.block_size * x
@@ -260,7 +260,6 @@ class GUI:
     def update_screen(self):
         pygame.time.wait(UIVariables.framerate)
         self._draw_all_screen()
-        pygame.time.wait(UIVariables.framerate*100)
 
     # Get last keyboard input since last calling this function
     def last_gui_input(self):
