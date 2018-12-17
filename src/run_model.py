@@ -6,7 +6,7 @@ from engine import TetrisEngine
 from dqn_agent import DQN
 from dqn_agent import select_action
 from torch.autograd import Variable
-import ga_agent
+import fixed_policy_agent
 use_cuda = torch.cuda.is_available()
 
 FloatTensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
@@ -33,9 +33,9 @@ def run(model):
     with torch.no_grad():
         while True:
 
-            action, placement = select_action(model, state, engine, engine.shape, engine.anchor, engine.board)
-#             action, placement = ga_agent.select_action(engine, engine.shape, engine.anchor, engine.board)
-            ga_agent
+            # action, placement = select_action(model, state, engine, engine.shape, engine.anchor, engine.board)
+            action, placement = fixed_policy_agent.select_action(engine, engine.shape, engine.anchor, engine.board)
+
             state, reward, done, cleared_lines = engine.step_to_final(action)
             state = FloatTensor(state[None,None,:,:])
 

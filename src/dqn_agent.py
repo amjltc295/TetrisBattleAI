@@ -17,7 +17,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 from engine import TetrisEngine
-import ga_agent
+import fixed_policy_agent 
 
 # width, height = 10, 20  # standard tetris friends rules
 width, height = 10, 20  # standard tetris friends rules
@@ -208,7 +208,7 @@ class DQN(nn.Module):
 BATCH_SIZE = 128
 GAMMA = 0.99
 EPS_START = 1
-EPS_END = 0.1
+EPS_END = 0.05
 EPS_DECAY = 30000
 # GAMMA = 0.999
 # EPS_START = 0.9
