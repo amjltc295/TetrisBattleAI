@@ -2,7 +2,7 @@ import argparse
 import curses
 import time
 
-from engine import TetrisEngine
+from src.engine import TetrisEngine
 from src.gui.gui import GUI
 
 

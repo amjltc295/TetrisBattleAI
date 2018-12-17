@@ -2,6 +2,7 @@
 # PYTRIS™ Copyright (c) 2017 Jason Kim All Rights Reserved.
 
 import pygame
+from src.global_engine import GlobalEngine
 from src.gui.mino import Tetrimino
 
 
