@@ -69,7 +69,7 @@ class GlobalEngine:
                 "hold_shape": None,
                 "hold_shape_name": None,
                 "hold_locked": False,
-                "bomb_lines": 0,
+                "garbage_lines": 0,
                 "highest_line": 0
             }
             self.key_action_map = {
@@ -96,7 +96,7 @@ class GlobalEngine:
     def sent_lines(self, idx, cleared_lines):
         for other_idx, other_engine in self.engines.items():
             if other_idx != idx:
-                other_engine.receive_bomb_lines(cleared_lines)
+                other_engine.receive_garbage_lines(cleared_lines)
 
                 # Get KO
                 if self.player_num == 2:
@@ -173,7 +173,7 @@ class GlobalEngine:
         return self.dbs
 
     def set_engine_state(self, idx, engine, reward, cleared_lines):
-        self.engine_states[idx]['bomb_lines'] = engine.bomb_lines
+        self.engine_states[idx]['garbage_lines'] = engine.garbage_lines
         self.engine_states[idx]['highest_line'] = engine.highest_line
         self.engine_states[idx]['hold_locked'] = engine.hold_locked
         self.engine_states[idx]['hold_shape'] = engine.hold_shape
