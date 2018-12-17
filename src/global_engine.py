@@ -12,7 +12,7 @@ def parse_args():
     parser.add_argument('-hh', '--height', type=int, default=16, help='Window height')
     parser.add_argument('-n', '--player_num', type=int, default=2, help='Number of players')
     parser.add_argument('-b', '--block_size', type=int, default=30, help='Set block size to enlarge GUI')
-    parser.add_argument('-g', '--active_gui', type=int, default=0, help='Active output to gui')
+    parser.add_argument('-g', '--use_gui', type=int, default=0, help='Active output to gui')
     parser.add_argument('-f', '--step_to_final', default=False, action='store_true',
                         help='One step to the final location')
     args = parser.parse_args()
@@ -21,7 +21,7 @@ def parse_args():
 
 class GlobalEngine:
     def __init__(
-        self, width, height, player_num, active_gui, block_size,
+        self, width, height, player_num, use_gui, block_size,
         game_time=120, KO_num_to_win=2
     ):
         self.width = width
@@ -34,7 +34,7 @@ class GlobalEngine:
         # For GUI use
         self.gui = None
         self.block_size = block_size
-        self.active_gui = active_gui
+        self.use_gui = use_gui
         self.pause = False
 
         self.engines = {}
@@ -47,7 +47,7 @@ class GlobalEngine:
 
     def setup(self):
         # Initialization
-        if self.active_gui:
+        if self.use_gui:
             gui = GUI(self, self.block_size)
             self.gui = gui
         else:
@@ -60,7 +60,7 @@ class GlobalEngine:
 
         for i in range(self.player_num):
             # Initial rendering
-            if not self.active_gui:
+            if not self.use_gui:
                 self.stdscr.addstr(str(self.engines[i]))
             self.engine_states[i] = {
                 "KO": 0,
@@ -114,7 +114,7 @@ class GlobalEngine:
                 max_score = score
 
     def get_action(self, step_to_final):
-        if self.active_gui:
+        if self.use_gui:
             key = self.gui.last_gui_input()
             """
             while key not in self.key_action_map:
@@ -142,7 +142,7 @@ class GlobalEngine:
         while time.time() - self.start_time < self.game_time and not game_over:
             action = self.get_action(step_to_final)
 
-            if not self.active_gui:
+            if not self.use_gui:
                 self.stdscr.clear()
             for idx, engine in self.engines.items():
                 # Game step
@@ -157,13 +157,13 @@ class GlobalEngine:
                 self.dbs[idx].append((state, reward, self.done, action))
 
                 # Render
-                if not self.active_gui:
+                if not self.use_gui:
                     self.stdscr.addstr(str(engine))
                     self.stdscr.addstr(f'reward: {self.engine_states[idx]}\n')
 
                 if self.engine_states[idx]['KO'] >= self.KO_num_to_win:
                     game_over = True
-            if self.active_gui:
+            if self.use_gui:
                 self.gui.update_screen()
             else:
                 self.stdscr.addstr(f'Time: {time.time() - self.start_time:.1f}\n')
@@ -186,5 +186,5 @@ class GlobalEngine:
 
 if __name__ == '__main__':
     args = parse_args()
-    global_engine = GlobalEngine(args.width, args.height, args.player_num, args.active_gui, args.block_size)
+    global_engine = GlobalEngine(args.width, args.height, args.player_num, args.use_gui, args.block_size)
     dbs = global_engine.play_game(args.step_to_final)
