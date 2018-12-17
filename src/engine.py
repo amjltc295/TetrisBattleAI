@@ -102,8 +102,8 @@ class TetrisEngine:
 
         # states
         self.total_cleared_lines = 0
-        self.previous_bomb_lines = 0
-        self.bomb_lines = 0
+        self.previous_garbage_lines = 0
+        self.garbage_lines = 0
         self.highest_line = 0
         self.drop_count = 0
         self.step_num_to_drop = 30
@@ -193,7 +193,7 @@ class TetrisEngine:
         if np.any(self.board[:, 0]):
             self.clear()
             self.n_deaths += 1
-            if self.bomb_lines == 0:
+            if self.garbage_lines == 0:
                 done = True
             reward = -10
         else:
@@ -223,7 +223,7 @@ class TetrisEngine:
             self.board = np.zeros_like(self.board)
         self._new_piece()
         self.hold_locked = False
-        self.bomb_lines = 0
+        self.garbage_lines = 0
         self.highest_line = 0
 
         return self.board
@@ -257,8 +257,8 @@ class TetrisEngine:
         self.board = self.set_piece(self.shape, self.anchor, self.board, False)
         return s
 
-    def receive_bomb_lines(self, bomb_lines):
-        self.bomb_lines += bomb_lines
+    def receive_garbage_lines(self, garbage_lines):
+        self.garbage_lines += garbage_lines
 
     def is_alive(self):
         if self.highest_line >= self.height:
@@ -267,11 +267,11 @@ class TetrisEngine:
 
     def _update_states(self):
         new_board = np.zeros_like(self.board)
-        if self.bomb_lines > 0:
-            new_board[:, -self.bomb_lines:] = -1
-        for i in range(self.height - self.previous_bomb_lines - 1, -1, -1):
-            new_board[:, i - (self.bomb_lines - self.previous_bomb_lines)] = self.board[:, i]
-        self.previous_bomb_lines = self.bomb_lines
+        if self.garbage_lines > 0:
+            new_board[:, -self.garbage_lines:] = -1
+        for i in range(self.height - self.previous_garbage_lines - 1, -1, -1):
+            new_board[:, i - (self.garbage_lines - self.previous_garbage_lines)] = self.board[:, i]
+        self.previous_garbage_lines = self.garbage_lines
         self.board = new_board
         for i in range(self.height - 1, -1, -1):
             if sum(self.board[:, i]) > 0:
