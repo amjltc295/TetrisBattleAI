@@ -46,7 +46,11 @@ class GlobalEngine:
 
     def setup(self):
         # Initialization
-        self.stdscr = curses.initscr()
+        if self.active_gui:
+            gui = GUI(global_engine)
+            global_engine.gui = gui
+        else:
+            self.stdscr = curses.initscr()
 
         # Store play information
         self.dbs = {}
@@ -55,7 +59,8 @@ class GlobalEngine:
 
         for i in range(self.player_num):
             # Initial rendering
-            self.stdscr.addstr(str(self.engines[i]))
+            if not self.active_gui:
+                self.stdscr.addstr(str(self.engines[i]))
             self.engine_states[i] = {
                 "KO": 0,
                 "reward": 0,
@@ -112,7 +117,7 @@ class GlobalEngine:
 
     def get_action(self, step_to_final):
         if self.active_gui:
-            key = gui.last_gui_input()
+            key = self.gui.last_gui_input()
         else:
             key = self.stdscr.getch()
         if step_to_final:
@@ -133,7 +138,8 @@ class GlobalEngine:
         while time.time() - self.start_time < self.game_time and not game_over:
             action = self.get_action(step_to_final)
 
-            self.stdscr.clear()
+            if not self.active_gui:
+                self.stdscr.clear()
             for idx, engine in self.engines.items():
                 # Game step
                 if step_to_final:
@@ -147,12 +153,16 @@ class GlobalEngine:
                 self.dbs[idx].append((state, reward, self.done, action))
 
                 # Render
-                self.stdscr.addstr(str(engine))
-                self.stdscr.addstr(f'reward: {self.engine_states[idx]}\n')
+                if not self.active_gui:
+                    self.stdscr.addstr(str(engine))
+                    self.stdscr.addstr(f'reward: {self.engine_states[idx]}\n')
 
                 if self.engine_states[idx]['KO'] >= self.KO_num_to_win:
                     game_over = True
-            self.stdscr.addstr(f'Time: {time.time() - self.start_time:.1f}\n')
+            if self.active_gui:
+                self.gui.update_screen()
+            else:
+                self.stdscr.addstr(f'Time: {time.time() - self.start_time:.1f}\n')
         self.compare_score()
         print(f"Winner: {self.winner} States: {self.engine_states}")
 
@@ -173,7 +183,4 @@ class GlobalEngine:
 if __name__ == '__main__':
     args = parse_args()
     global_engine = GlobalEngine(args.width, args.height, args.player_num, args.active_gui)
-    if args.active_gui:
-        gui = GUI(global_engine)
-        global_engine.gui = gui
     dbs = global_engine.play_game(args.step_to_final)
