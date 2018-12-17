@@ -3,7 +3,7 @@ import curses
 import time
 
 from src.engine import TetrisEngine
-from src.gui.gui import GUI
+from src.gui.gui import *
 
 
 def parse_args():
@@ -11,8 +11,7 @@ def parse_args():
     parser.add_argument('-ww', '--width', type=int, default=10, help='Window width')
     parser.add_argument('-hh', '--height', type=int, default=16, help='Window height')
     parser.add_argument('-n', '--player_num', type=int, default=2, help='Number of players')
-    parser.add_argument('-g', '--active_gui', action='store_true', defaul=False,
-                        help='Active output to gui')
+    parser.add_argument('-g', '--active_gui', type=int, default=0, help='Active output to gui')
     parser.add_argument('-f', '--step_to_final', default=False, action='store_true',
                         help='One step to the final location')
     args = parser.parse_args()
@@ -112,10 +111,10 @@ class GlobalEngine:
                 max_score = score
 
     def get_action(self, step_to_final):
-        key = self.stdscr.getch()
         if self.active_gui:
-            key = self.gui_input
-            self.gui_input = '-'    # Reset input
+            key = gui.last_gui_input()
+        else:
+            key = self.stdscr.getch()
         if step_to_final:
             move = chr(key)
             if move == '-':
@@ -176,4 +175,5 @@ if __name__ == '__main__':
     global_engine = GlobalEngine(args.width, args.height, args.player_num, args.active_gui)
     if args.active_gui:
         gui = GUI(global_engine)
+        global_engine.gui = gui
     dbs = global_engine.play_game(args.step_to_final)
