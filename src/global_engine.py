@@ -3,6 +3,7 @@ import curses
 import time
 
 from engine import TetrisEngine
+from gui.gui import GUI
 
 
 def parse_args():
@@ -10,6 +11,8 @@ def parse_args():
     parser.add_argument('-ww', '--width', type=int, default=10, help='Window width')
     parser.add_argument('-hh', '--height', type=int, default=16, help='Window height')
     parser.add_argument('-n', '--player_num', type=int, default=2, help='Number of players')
+    parser.add_argument('-b', '--block_size', type=int, default=30, help='Set block size to enlarge GUI')
+    parser.add_argument('-g', '--use_gui', type=int, default=0, help='Active output to gui')
     parser.add_argument('-f', '--step_to_final', default=False, action='store_true',
                         help='One step to the final location')
     args = parser.parse_args()
@@ -18,8 +21,8 @@ def parse_args():
 
 class GlobalEngine:
     def __init__(
-        self, width, height, player_num, game_time=120,
-        KO_num_to_win=2
+        self, width, height, player_num, use_gui, block_size,
+        game_time=120, KO_num_to_win=2
     ):
         self.width = width
         self.height = height
@@ -27,6 +30,12 @@ class GlobalEngine:
         self.game_time = game_time
         self.KO_num_to_win = KO_num_to_win
         self.winner = None
+
+        # For GUI use
+        self.gui = None
+        self.block_size = block_size
+        self.use_gui = use_gui
+        self.pause = False
 
         self.engines = {}
         for i in range(player_num):
@@ -38,8 +47,11 @@ class GlobalEngine:
 
     def setup(self):
         # Initialization
-
-        self.stdscr = curses.initscr()
+        if self.use_gui:
+            gui = GUI(self, self.block_size)
+            self.gui = gui
+        else:
+            self.stdscr = curses.initscr()
 
         # Store play information
         self.dbs = {}
@@ -48,16 +60,26 @@ class GlobalEngine:
 
         for i in range(self.player_num):
             # Initial rendering
-            self.stdscr.addstr(str(self.engines[i]))
+            if not self.use_gui:
+                self.stdscr.addstr(str(self.engines[i]))
             self.engine_states[i] = {
                 "KO": 0,
                 "reward": 0,
                 "lines_sent": 0,
                 "hold_shape": None,
                 "hold_shape_name": None,
-                "holded": False,
-                "bomb_lines": 0,
+                "hold_locked": False,
+                "garbage_lines": 0,
                 "highest_line": 0
+            }
+            self.key_action_map = {
+                ord('a'): 0,  # Shift left
+                ord('d'): 1,  # Shift right
+                ord('w'): 2,  # Hard drop
+                ord('s'): 3,  # Soft drop
+                ord('q'): 4,  # Rotate left
+                ord('e'): 5,  # Rotate right
+                ord('f'): 7   # Hold
             }
             # Initialize dbs
             self.dbs[i] = []
@@ -65,20 +87,8 @@ class GlobalEngine:
         self.start_time = time.time()
 
     def keyboard_control(self, key):
-        if key == ord('a'):  # Shift left
-            action = 0
-        elif key == ord('d'):  # Shift right
-            action = 1
-        elif key == ord('w'):  # Hard drop
-            action = 2
-        elif key == ord('s'):  # Soft drop
-            action = 3
-        elif key == ord('q'):  # Rotate left
-            action = 4
-        elif key == ord('e'):  # Rotate right
-            action = 5
-        elif key == ord('f'):  # Hold
-            action = 7
+        if key in self.key_action_map:
+            action = self.key_action_map[key]
         else:
             action = 6
         return action
@@ -86,7 +96,7 @@ class GlobalEngine:
     def sent_lines(self, idx, cleared_lines):
         for other_idx, other_engine in self.engines.items():
             if other_idx != idx:
-                other_engine.receive_bomb_lines(cleared_lines)
+                other_engine.receive_garbage_lines(cleared_lines)
 
                 # Get KO
                 if self.player_num == 2:
@@ -104,14 +114,23 @@ class GlobalEngine:
                 max_score = score
 
     def get_action(self, step_to_final):
-        if step_to_final:
-            move = chr(self.stdscr.getch())
-            if move == '-':
-                move += chr(self.stdscr.getch())
-            rotate = chr(self.stdscr.getch())
-            action = f"move_{move}_right_rotate_{rotate}"
+        if self.use_gui:
+            key = self.gui.last_gui_input()
+            """
+            while key not in self.key_action_map:
+                key = self.gui.last_gui_input()
+                self.gui.update_screen()
+
+            """
         else:
             key = self.stdscr.getch()
+        if step_to_final:
+            move = chr(key)
+            if move == '-':
+                move += chr(key)
+            rotate = chr(key)
+            action = f"move_{move}_right_rotate_{rotate}"
+        else:
             action = self.keyboard_control(key)
         return action
 
@@ -123,7 +142,8 @@ class GlobalEngine:
         while time.time() - self.start_time < self.game_time and not game_over:
             action = self.get_action(step_to_final)
 
-            self.stdscr.clear()
+            if not self.use_gui:
+                self.stdscr.clear()
             for idx, engine in self.engines.items():
                 # Game step
                 if step_to_final:
@@ -137,21 +157,25 @@ class GlobalEngine:
                 self.dbs[idx].append((state, reward, self.done, action))
 
                 # Render
-                self.stdscr.addstr(str(engine))
-                self.stdscr.addstr(f'reward: {self.engine_states[idx]}\n')
+                if not self.use_gui:
+                    self.stdscr.addstr(str(engine))
+                    self.stdscr.addstr(f'reward: {self.engine_states[idx]}\n')
 
                 if self.engine_states[idx]['KO'] >= self.KO_num_to_win:
                     game_over = True
-            self.stdscr.addstr(f'Time: {time.time() - self.start_time:.1f}\n')
+            if self.use_gui:
+                self.gui.update_screen()
+            else:
+                self.stdscr.addstr(f'Time: {time.time() - self.start_time:.1f}\n')
         self.compare_score()
         print(f"Winner: {self.winner} States: {self.engine_states}")
 
         return self.dbs
 
     def set_engine_state(self, idx, engine, reward, cleared_lines):
-        self.engine_states[idx]['bomb_lines'] = engine.bomb_lines
+        self.engine_states[idx]['garbage_lines'] = engine.garbage_lines
         self.engine_states[idx]['highest_line'] = engine.highest_line
-        self.engine_states[idx]['holded'] = engine.holded
+        self.engine_states[idx]['hold_locked'] = engine.hold_locked
         self.engine_states[idx]['hold_shape'] = engine.hold_shape
         self.engine_states[idx]['hold_shape_name'] = engine.hold_shape_name
         self.engine_states[idx]['shape_name'] = engine.shape_name
@@ -162,5 +186,5 @@ class GlobalEngine:
 
 if __name__ == '__main__':
     args = parse_args()
-    global_engine = GlobalEngine(args.width, args.height, args.player_num)
+    global_engine = GlobalEngine(args.width, args.height, args.player_num, args.use_gui, args.block_size)
     dbs = global_engine.play_game(args.step_to_final)
