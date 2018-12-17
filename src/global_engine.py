@@ -3,7 +3,7 @@ import curses
 import time
 
 from src.engine import TetrisEngine
-from src.gui.gui import *
+from src.gui.gui import GUI
 
 
 def parse_args():
