@@ -1,29 +1,27 @@
 # -*- coding: utf-8 -*-
 from engine import TetrisEngine
-from heuristic import *
+from heuristic import heuristic_fn, complete_line
 from itertools import count
 import numpy as np
 
 
-width, height = 10, 20 # standard tetris friends rules
+width, height = 10, 20  # standard tetris friends rules
 engine = TetrisEngine(width, height)
-
-
 
 
 def select_action(engine, shape, anchor, board):
     action_final_location_map = engine.get_valid_final_states(shape, anchor, board)
-    act_pairs = [ (k,v[2]) for k,v in action_final_location_map.items()]
-    
-    placements = [v for k,v in act_pairs]
-    h_score = [heuristic_fn(s, complete_line(s)) for s in placements] 
+    act_pairs = [(k, v[2]) for k, v in action_final_location_map.items()]
+    placements = [v for k, v in act_pairs]
+    h_score = [heuristic_fn(s, complete_line(s)) for s in placements]
     act_idx = np.argmax(h_score)
     act, placement = act_pairs[act_idx]
     return act, placement
 
+
 def print_placement(state):
     s = np.asarray(state)
-    s = np.swapaxes(s, 1,0)
+    s = np.swapaxes(s, 1, 0)
     print(s)
 
 
@@ -44,16 +42,11 @@ if __name__ == '__main__':
             # Accumulate reward
             score += reward
             cl += cleared_lines
-    
             # Perform one step of the optimization (on the target network)
             if done or t >= 500:
                 # Train model
                 if i_episode % 1 == 0:
-    
                     log = 'epoch {0} score {1} cleared_lines {2}'.format(i_episode, '%.2f' % score, cl)
                     print(log)
                 break
-    
-    
-    
     print('Complete')
