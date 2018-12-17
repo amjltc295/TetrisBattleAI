@@ -34,7 +34,6 @@ class GlobalEngine:
         # For GUI use
         self.gui = None
         self.block_size = block_size
-        self.gui_input = '-'
         self.active_gui = active_gui
         self.pause = False
 
