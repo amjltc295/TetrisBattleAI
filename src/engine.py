@@ -106,7 +106,7 @@ class TetrisEngine:
         self.bomb_lines = 0
         self.highest_line = 0
         self.drop_count = 0
-        self.step_num_to_drop = 3
+        self.step_num_to_drop = 30
         self.holded = False
         self.hold_shape = []
         self.hold_shape_name = None
@@ -317,3 +317,9 @@ class TetrisEngine:
                 action_name = f"move_{move}_right_rotate_{rotate}"
                 action_state_dict[action_name] = (final_shape, final_anchor, final_board)
         return action_state_dict
+
+    def get_board(self):
+        self.board = self.set_piece(self.shape, self.anchor, self.board, True)
+        state = np.copy(self.board)
+        self.board = self.set_piece(self.shape, self.anchor, self.board, False)
+        return state

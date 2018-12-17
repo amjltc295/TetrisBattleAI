@@ -2,8 +2,8 @@ import argparse
 import curses
 import time
 
-from src.engine import TetrisEngine
-from src.gui.gui import GUI
+from engine import TetrisEngine
+from gui.gui import GUI
 
 
 def parse_args():
@@ -49,8 +49,8 @@ class GlobalEngine:
     def setup(self):
         # Initialization
         if self.active_gui:
-            gui = GUI(global_engine, self.block_size)
-            global_engine.gui = gui
+            gui = GUI(self, self.block_size)
+            self.gui = gui
         else:
             self.stdscr = curses.initscr()
 
@@ -73,26 +73,23 @@ class GlobalEngine:
                 "bomb_lines": 0,
                 "highest_line": 0
             }
+            self.key_action_map = {
+                ord('a'): 0,  # Shift left
+                ord('d'): 1,  # Shift right
+                ord('w'): 2,  # Hard drop
+                ord('s'): 3,  # Soft drop
+                ord('q'): 4,  # Rotate left
+                ord('e'): 5,  # Rotate right
+                ord('f'): 7   # Hold
+            }
             # Initialize dbs
             self.dbs[i] = []
 
         self.start_time = time.time()
 
     def keyboard_control(self, key):
-        if key == ord('a'):  # Shift left
-            action = 0
-        elif key == ord('d'):  # Shift right
-            action = 1
-        elif key == ord('w'):  # Hard drop
-            action = 2
-        elif key == ord('s'):  # Soft drop
-            action = 3
-        elif key == ord('q'):  # Rotate left
-            action = 4
-        elif key == ord('e'):  # Rotate right
-            action = 5
-        elif key == ord('f'):  # Hold
-            action = 7
+        if key in self.key_action_map:
+            action = self.key_action_map[key]
         else:
             action = 6
         return action
@@ -120,6 +117,12 @@ class GlobalEngine:
     def get_action(self, step_to_final):
         if self.active_gui:
             key = self.gui.last_gui_input()
+            """
+            while key not in self.key_action_map:
+                key = self.gui.last_gui_input()
+                self.gui.update_screen()
+
+            """
         else:
             key = self.stdscr.getch()
         if step_to_final:
