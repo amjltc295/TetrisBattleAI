@@ -2,7 +2,7 @@ def get_hole(state):
     width, height = state.shape
     n_hole = 0
     for x in range(width):
-        pre_occupied = False
+        pre_occupied = True
         for y in reversed(range(height)):
             if not pre_occupied and state[x,y] == 1:
                 n_hole += 1
@@ -11,7 +11,7 @@ def get_hole(state):
 
 def get_height(state, x):
     width, height = state.shape
-    for y in reversed(range(height)):
+    for y in range(height):
         if state[x,y] == 1:
             return height-y
     return 0
@@ -43,10 +43,22 @@ def bumpiness(state):
         ret += diff
     return ret
 
-def heuristic_fn(state, complete_line):
-#     return -0.51*aggregate_height(state) + 0.76*complete_line - 0.36*get_hole(state) - 0.18*bumpiness(state)
-#     return -0.51*aggregate_height(state) + 0.76*complete_line - 0.36*get_hole(state) - 0.18*bumpiness(state) - 0.3*max_height(state)
-    return -0.51*aggregate_height(state) + 10.*complete_line - 0.36*get_hole(state) - 0.18*bumpiness(state) - 0.3*max_height(state)
-#     return 0.76*complete_line - 0.36*get_hole(state) - 0.5*max_height(state)
+def complete_line(state):
+    width, height = state.shape
+    n_line = 0
+    for y in range(height):
+        if (state[:,y] == 1).all():
+            n_line+=1
+    return n_line
+    
+def heuristic_fn(state, cleared_lines):
+#     import numpy as np
+#     s = np.asarray(state)
+#     s = np.swapaxes(s, 1,0)
+#     print(s)
+#     print(aggregate_height(state),complete_line(state),get_hole(state),bumpiness(state))
+#     wef
+    return -0.51*aggregate_height(state) + 0.76*cleared_lines - 0.36*get_hole(state) - 0.18*bumpiness(state)
+#     return -0.51*aggregate_height(state) + 10.*complete_line(state) - 0.36*get_hole(state) - 0.18*bumpiness(state) - 0.3*max_height(state)
     
     

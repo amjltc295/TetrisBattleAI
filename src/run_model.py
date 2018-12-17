@@ -3,16 +3,18 @@ import os
 import torch
 import time
 from engine import TetrisEngine
-from dqn_agent import DQN, ReplayMemory, Transition
+from dqn_agent import DQN
+from dqn_agent import select_action
 from torch.autograd import Variable
-
+import ga_agent
 use_cuda = torch.cuda.is_available()
 
 FloatTensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
 LongTensor = torch.cuda.LongTensor if use_cuda else torch.LongTensor
 
-width, height = 10, 20 # standard tetris friends rules
+width, height = 10, 20  # standard tetris friends rules
 engine = TetrisEngine(width, height)
+
 
 def load_model(filename):
     model = DQN()
@@ -23,28 +25,32 @@ def load_model(filename):
 
     return model
 
+
 def run(model):
-    state = FloatTensor(engine.clear()[None,None,:,:])
+    state = FloatTensor(engine.clear()[None, None, :, :])
     score = 0
-    while True:
-        action = model(Variable(state,
-            volatile=True).type(FloatTensor)).data.max(1)[1].view(1,1).type(LongTensor)
-        # print( model(Variable(state,
-            # volatile=True).type(FloatTensor)).data)
+    model.eval()
+    with torch.no_grad():
+        while True:
 
-        state, reward, done = engine.step(action[0,0].item())
-        state = FloatTensor(state[None,None,:,:])
+            action, placement = select_action(model, state, engine, engine.shape, engine.anchor, engine.board)
+#             action, placement = ga_agent.select_action(engine, engine.shape, engine.anchor, engine.board)
+            ga_agent
+            state, reward, done, cleared_lines = engine.step_to_final(action)
+            state = FloatTensor(state[None,None,:,:])
 
-        # Accumulate reward
-        score += int(reward)
+            # Accumulate reward
+            score += int(reward)
 
-        print(engine)
-        # print(action)
-        time.sleep(.1)
+            print(engine)
+            print('score : %d' % score)
+            # print(action)
+            time.sleep(.1)
 
-        if done:
-            print('score {0}'.format(score))
-            break
+            if done:
+                print('score {0}'.format(score))
+                break
+
 
 if len(sys.argv) <= 1:
     print('specify a filename to load the model')

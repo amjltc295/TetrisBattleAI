@@ -10,31 +10,28 @@ import matplotlib
 from collections import namedtuple
 from itertools import count
 from copy import deepcopy
-
+from heuristic import *
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
 from engine import TetrisEngine
+import ga_agent
 
-width, height = 8, 20 # standard tetris friends rules
+# width, height = 10, 20  # standard tetris friends rules
+width, height = 10, 20  # standard tetris friends rules
 engine = TetrisEngine(width, height)
 
-# set up matplotlib
-#is_ipython = 'inline' in matplotlib.get_backend()
-#if is_ipython:
-    #from IPython import display
-
-#plt.ion()
 
 # if gpu is to be used
 use_cuda = torch.cuda.is_available()
-if use_cuda:print("....Using Gpu...")
+if use_cuda:
+    print("....Using Gpu...")
 FloatTensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
 LongTensor = torch.cuda.LongTensor if use_cuda else torch.LongTensor
 ByteTensor = torch.cuda.ByteTensor if use_cuda else torch.ByteTensor
-#Tensor = FloatTensor
+# Tensor = FloatTensor
 
 
 ######################################################################
@@ -48,7 +45,7 @@ ByteTensor = torch.cuda.ByteTensor if use_cuda else torch.ByteTensor
 #
 
 Transition = namedtuple('Transition',
-                        ('state', 'action', 'next_state', 'reward'))
+                        ('state', 'next_state', 'placement', 'next_shape', 'next_anchor', 'next_board', 'reward'))
 
 
 class ReplayMemory(object):
@@ -84,34 +81,30 @@ class ReplayMemory(object):
                 
             idx = np.random.choice(np.arange(len(self.old_memory)), size=[batch_size,],p=self.prior)
             return np.array(self.old_memory)[idx]
-    def calc_prior(self):
-#         print('start', len(self.old_memory))
-        batch = Transition(*zip(*self.old_memory))
+#     def calc_prior(self):
+# #         print('start', len(self.old_memory))
+#         batch = Transition(*zip(*self.old_memory))
     
-        # Compute a mask of non-final states and concatenate the batch elements
-        non_final_mask = ByteTensor(tuple(map(lambda s: s is not None,
-                                              batch.next_state)))
+#         # Compute a mask of non-final states and concatenate the batch elements
+#         non_final_mask = ByteTensor(tuple(map(lambda s: s is not None,
+#                                               batch.next_state)))
     
-        non_final_next_states = torch.cat([s for s in batch.next_state
-                                                        if s is not None])
-        state_batch = torch.cat(batch.state)
-        action_batch = torch.cat(batch.action)
-        reward_batch = torch.cat(batch.reward)
-        # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
-        # columns of actions taken
-        with torch.no_grad():
-            state_action_values = model(state_batch).gather(1, action_batch)
+#         state_batch = torch.cat(batch.state)
+#         next_Q_batch = torch.cat(batch.next_max_Q)
+#         reward_batch = torch.cat(batch.reward)
+#         # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
+#         # columns of actions taken
 
-            next_state_values = torch.zeros(state_batch.shape[0]).type(FloatTensor)
-            next_state_values[non_final_mask] = torch.topk(cached_model(non_final_next_states), 1, dim=1)[0].flatten()
+#         next_state_values = torch.zeros(state_batch.shape[0]).type(FloatTensor)
+#         next_state_values[non_final_mask] = next_Q_batch[non_final_mask]
 
-        # Compute the expected Q values
-        expected_state_action_values = (next_state_values * GAMMA) + reward_batch
-        prior = state_action_values.flatten() - expected_state_action_values
-        prior = torch.abs(prior)
-        prior = F.softmax(prior, dim=0)
-        self.prior = prior.cpu().numpy()
-#         print('end',self.prior.shape,self.prior[:100])
+#         # Compute the expected Q values
+#         expected_state_values = (next_state_values * GAMMA) + reward_batch
+#         prior = state_values.flatten() - expected_state_values
+#         prior = torch.abs(prior)
+#         prior = F.softmax(prior, dim=0)
+#         self.prior = prior.cpu().numpy()
+# #         print('end',self.prior.shape,self.prior[:100])
 
     def __len__(self):
         return len(self.memory)
@@ -171,18 +164,24 @@ class DQN(nn.Module):
         #self.conv3 = nn.Conv2d(32, 32, kernel_size=2, stride=2)
         #self.bn3 = nn.BatchNorm2d(32)
         #self.rnn = nn.LSTM(448, 240)
-#         self.lin1 = nn.Linear(896, 256)
-        self.lin1 = nn.Linear(448, 256)
-        self.head = nn.Linear(256, engine.nb_actions)
+        self.lin1 = nn.Linear(896, 256)
+#         self.lin1 = nn.Linear(448, 256)
+#         self.head = nn.Linear(256, engine.nb_actions)
+        self.head = nn.Linear(2*256, 1)
 
-    def forward(self, x):
+    def forward(self, x, placement):
         batch, ch, w, h = x.size()
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
 #         print(x.shape)
         #x = F.relu(self.bn3(self.conv3(x)))
         x = F.relu(self.lin1(x.view(batch, -1)))
-        return self.head(x)
+        
+        placement = F.relu(self.bn1(self.conv1(placement)))
+        placement = F.relu(self.bn2(self.conv2(placement)))
+        placement = F.relu(self.lin1(placement.view(batch, -1)))
+        
+        return self.head(torch.cat([x, placement], dim=-1))
     
     
 
@@ -206,11 +205,11 @@ class DQN(nn.Module):
 #    controls the rate of the decay.
 #
 
-BATCH_SIZE = 512
+BATCH_SIZE = 128
 GAMMA = 0.99
 EPS_START = 1
 EPS_END = 0.1
-EPS_DECAY = 3000000
+EPS_DECAY = 30000
 # GAMMA = 0.999
 # EPS_START = 0.9
 # EPS_END = 0.05
@@ -238,25 +237,47 @@ if use_cuda:
 optimizer = optim.Adam(model.parameters(), lr=.001)
 memory = ReplayMemory(200000)
 
+def get_max_Q(model, state, engine, shape, anchor, board):
+    action_final_location_map = engine.get_valid_final_states(shape, anchor, board)
+    act_pairs = [ (k,v[2]) for k,v in action_final_location_map.items()]
+    with torch.no_grad():
+        states = FloatTensor(state)[None, None,:,:].repeat(len(act_pairs), 1, 1, 1)
+        placements = [] 
+        for k, v in act_pairs:
+            placements.append(FloatTensor(v)[None, None,:,:])
+        placements = torch.cat(placements, dim=0)
+        Q = model(states, placements).flatten()
+        assert Q.shape == (len(act_pairs),)
+        topv, topi = torch.topk(Q, k=1)
+        act, placement = act_pairs[topi.item()]
+    return act, placement, topv.item()
 
-def select_action(state):
+def select_action(model, state, engine, shape, anchor, board):
     sample = random.random()
     eps_threshold = cal_eps()
     if sample > eps_threshold:
-        with torch.no_grad():
-            state = FloatTensor(state)[None, None,:,:]
-            Q = cached_model(state)
-        prob, idx = torch.topk(Q, 1, dim=1)
-        return idx.item()
+        act, placement, Q = get_max_Q(model, state, engine, shape, anchor, board)
+        return act, placement
+                
     else:
-        return random.randrange(engine.nb_actions)
+        action_final_location_map = engine.get_valid_final_states(shape, anchor, board)
+        act_pairs = [ (k,v[2]) for k,v in action_final_location_map.items()]
+    
+        if random.randrange(2) == 0:
+            idx = random.randrange(len(act_pairs))
+            act, placement = act_pairs[idx]
+            return act, placement
+        else:
+            return ga_agent.select_action(engine, engine.shape, engine.anchor, engine.board)
+            
+        
 def cal_eps():
     global steps_done
     eps_threshold = EPS_END + (EPS_START - EPS_END) * \
         math.exp(-1. * steps_done / EPS_DECAY)
     steps_done += 1
     return eps_threshold
-    
+
 
 episode_durations = []
 
@@ -296,7 +317,7 @@ def plot_durations():
 # loss. By defition we set :math:`V(s) = 0` if :math:`s` is a terminal
 # state.
 
-
+# ('state', 'placement', 'next_shape', 'next_anchor', 'next_board', 'reward'))
 last_sync = 0
 def optimize_model():
     if len(memory) < BATCH_SIZE:
@@ -307,32 +328,30 @@ def optimize_model():
     batch = Transition(*zip(*transitions))
 
     # Compute a mask of non-final states and concatenate the batch elements
-    non_final_mask = ByteTensor(tuple(map(lambda s: s is not None,
-                                          batch.next_state)))
-    # We don't want to backprop through the expected action values and volatile
-    # will save us on temporarily changing the model parameters'
-    # requires_grad to False!
-
-    non_final_next_states = torch.cat([FloatTensor(s)[None, None,:,:] for s in batch.next_state
-                                                    if s is not None])
-    state_batch = torch.cat([FloatTensor(s)[None, None,:,:] for s in batch.state])
-    action_batch = LongTensor(batch.action).view(-1,1)
+    next_max_Q = []
+    for state, shape, anchor, board in zip(batch.next_state, batch.next_shape, batch.next_anchor, batch.next_board):
+        if shape is None:
+            next_max_Q.append(0)
+        else:
+            act, placement, Q = get_max_Q(cached_model, state, engine, shape, anchor, board) 
+            next_max_Q.append(Q)
+    next_max_Q = FloatTensor(next_max_Q)
+    
     reward_batch = FloatTensor(batch.reward)
-    # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
-    # columns of actions taken
-    state_action_values = model(state_batch).gather(1, action_batch)
 
-    # Compute V(s_{t+1}) for all next states.
-    next_state_values = torch.zeros(BATCH_SIZE).type(FloatTensor)
-    with torch.no_grad():
-        topv, topi = torch.topk(cached_model(non_final_next_states), k=1, dim=1)
-        next_state_values[non_final_mask] = topv.flatten()
 
     # Compute the expected Q values
-    expected_state_action_values = (next_state_values * GAMMA) + reward_batch
-    expected_state_action_values = expected_state_action_values.unsqueeze(0)
+    state_batch = torch.cat([FloatTensor(s)[None, None,:,:] for s in batch.state])
+    placement_batch = torch.cat([FloatTensor(s)[None, None,:,:] for s in batch.placement])
+    
+    state_values = model(state_batch, placement_batch).flatten()
+    
+    # Compute V(s_{t+1}) for all next states.
+    
+    # Compute the expected Q values
+    expected_state_values = (next_max_Q * GAMMA) + reward_batch
     # Compute Huber loss
-    loss = F.smooth_l1_loss(state_action_values, expected_state_action_values)
+    loss = F.smooth_l1_loss(state_values, expected_state_values)
 
 #     loss = loss_criterion(state_action_values.squeeze(1), expected_state_action_values)
 
@@ -344,11 +363,11 @@ def optimize_model():
     optimizer.step()
     return loss
 
-
 def save_checkpoint(state, is_best, filename, best_name ):
     torch.save(state, filename)
     if is_best:
         shutil.copyfile(filename, best_name)
+
 
 def load_checkpoint(filename):
     checkpoint = torch.load(filename)
@@ -356,14 +375,16 @@ def load_checkpoint(filename):
     cached_model.load_state_dict(checkpoint['state_dict'])
     try: # If these fail, its loading a supervised model
         optimizer.load_state_dict(checkpoint['optimizer'])
-        memory = checkpoint['memory']
-    except Exception as e:
+        # memory = checkpoint['memory']
+    except Exception:
         pass
     # Low chance of random action
-    #steps_done = 10 * EPS_DECAY
+    # steps_done = 10 * EPS_DECAY
 
     return checkpoint['epoch'], checkpoint['best_score']
 
+
+    
 if __name__ == '__main__':
     # Check if user specified to resume from a checkpoint
     start_epoch = 0
@@ -396,23 +417,27 @@ if __name__ == '__main__':
         for t in count():
             # Select and perform an action
     
-            action = select_action(state)
+            action, placement = select_action(cached_model, state, engine, engine.shape, engine.anchor, engine.board)
             # Observations
             last_state = state
-            state, reward, done = engine.step(action)
+            
+            state, reward, done, cleared_lines = engine.step_to_final(action)
+            
             if done:
-                state = None
-                
+                data = (last_state, state, placement, None, None,
+                    None, reward)
+            else:
+                data = (last_state, state, placement, deepcopy(engine.shape), deepcopy(engine.anchor),
+                    deepcopy(engine.board), reward)
+            
+            memory.push(*data)
             # Accumulate reward
             score += reward
-#             if i_episode == 100:
-#                 print(engine)
-            # Store the transition in memory
-            memory.push(last_state, action, state, reward)
-    
+
             # Perform one step of the optimization (on the target network)
             if done:
                 loss = optimize_model()
+#                 loss = 0
                 # Train model
                 if i_episode % 10 == 0:
     
@@ -435,7 +460,7 @@ if __name__ == '__main__':
                         }, is_best, filename='checkpoint.pth.tar', best_name='model_best.pth.tar')
                     best_score = score
 #                 copy cached model
-                if i_episode % 100 == 0 and  i_episode > 0:
+                if i_episode % 50 == 0 and  i_episode > 0:
                     cached_model.load_state_dict(model.state_dict())
 #                     memory.update_memory()
                 break
@@ -443,7 +468,3 @@ if __name__ == '__main__':
 
     f.close()
     print('Complete')
-    #env.render(close=True)
-    #env.close()
-    #plt.ioff()
-    #plt.show()

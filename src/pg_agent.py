@@ -10,7 +10,7 @@ import matplotlib
 from collections import namedtuple
 from itertools import count
 from copy import deepcopy
-
+import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -18,7 +18,7 @@ import torch.nn.functional as F
 
 from engine import TetrisEngine
 
-width, height = 8, 20 # standard tetris friends rules
+width, height = 10, 20 # standard tetris friends rules
 engine = TetrisEngine(width, height)
 eps = 10.**-8
 
@@ -49,7 +49,7 @@ ByteTensor = torch.cuda.ByteTensor if use_cuda else torch.ByteTensor
 #
 
 Transition = namedtuple('Transition',
-                        ('state', 'action', 'next_state', 'reward'))
+                        ('state', 'placement', 'other_score', 'next_state', 'reward'))
 
 
 class PG(nn.Module):
@@ -60,16 +60,24 @@ class PG(nn.Module):
         self.bn1 = nn.BatchNorm2d(32)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=2)
         self.bn2 = nn.BatchNorm2d(64)
-        self.lin1 = nn.Linear(448, 256)
-        self.head = nn.Linear(256, engine.nb_actions)
+        self.lin1 = nn.Linear(896, 256)
+#         self.lin1 = nn.Linear(448, 256)
+        self.head = nn.Linear(256 * 2, 1)
 
-    def forward(self, x):
+    def forward(self, x, placement):
         batch, ch, w, h = x.size()
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
 #         print(x.shape)
         x = F.relu(self.lin1(x.view(batch, -1)))
-        return torch.softmax(self.head(x), dim=-1)
+        
+        p = placement
+        batch, ch, w, h = p.size()
+        p = F.relu(self.bn1(self.conv1(p)))
+        p = F.relu(self.bn2(self.conv2(p)))
+        p = F.relu(self.lin1(p.view(batch, -1)))
+        
+        return self.head(torch.cat([x,p], dim=-1))
     
     
 
@@ -119,6 +127,11 @@ if use_cuda:
 # optimizer = optim.RMSprop(model.parameters(), lr=.001)
 optimizer = optim.Adam(model.parameters(), lr=.001)
 
+def get_action_placement(engine):
+    action_final_location_map = engine.get_valid_final_states(engine.shape, engine.anchor, engine.board)
+    act_map = {k:v[2] for k,v in action_final_location_map.items()}
+    return act_map
+
 def entropy(act_prob):
     assert len(act_prob.shape) == 2
     entropy = torch.mean(-torch.log(act_prob + eps) * act_prob)
@@ -139,12 +152,22 @@ def discount_rewards(rewards):
 #     rewards = (rewards - rewards.mean()) / (rewards.std())
     return rewards
 
-def select_action(state):
+def select_action(state, engine):
+    act_map = get_action_placement(engine)
     with torch.no_grad():
-        state = FloatTensor(state)[None, None,:,:]
-        prob_action = model(state).cpu().numpy()
-    act = np.random.choice(engine.nb_actions, 1, p=prob_action.flatten())
-    return int(act)
+        placements = [] 
+        for k, v in act_map.items():
+            placements.append(FloatTensor(v)[None, None,:,:])
+        placements = torch.cat(placements, dim=0)
+        states = FloatTensor(state)[None, None,:,:].repeat(len(act_map), 1, 1, 1)
+        Q = model(states, placements).flatten()
+        assert Q.shape == (len(act_map),)
+        prob_action = F.softmax(Q, dim=0)
+        act_idx = int(np.random.choice(len(act_map), 1, p=prob_action.cpu().numpy()))
+        other_score = torch.sum(Q) - Q[act_idx]
+    act = list(act_map.keys())[act_idx]
+    placement = act_map[act]
+    return act, placement, other_score
     
 
 episode_durations = []
@@ -192,13 +215,14 @@ def optimize_model(episode):
 
 
     state_batch = torch.cat([FloatTensor(s)[None, None,:,:] for s in batch.state])
-    action_batch = LongTensor(batch.action).view(-1,1)
+    placement_batch = torch.cat([FloatTensor(s)[None, None,:,:] for s in batch.placement])
+    other_score_batch = FloatTensor(batch.other_score)
     reward_batch = FloatTensor(discount_rewards(batch.reward))
-    act_prob = model(state_batch)
-    Q_act_prob = act_prob.gather(1, action_batch)
-    
-    loss = torch.mean(-torch.log(Q_act_prob.flatten()) * reward_batch) - 0.01*entropy(act_prob)
-#     loss = torch.mean(-torch.log(Q_act_prob.flatten()+ eps) * reward_batch) 
+    act_score = model(state_batch, placement_batch).flatten()
+#     softmax probability
+    act_prob = torch.exp(act_score) / torch.exp(act_score+other_score_batch)
+#     loss = torch.mean(-torch.log(act_prob.flatten()) * reward_batch) - 0.01*entropy(act_prob)
+    loss = torch.mean(-torch.log(act_prob + eps) * reward_batch)
     # Optimize the model
     optimizer.zero_grad()
     loss.backward()
@@ -258,10 +282,16 @@ if __name__ == '__main__':
         for t in count():
             # Select and perform an action
     
-            action = select_action(state)
+            action, placement, other_score = select_action(state, engine)
             # Observations
             last_state = state
-            state, reward, done = engine.step(action)
+            state, reward, done, cleared_lines = engine.step_to_final(action)
+#             s = np.asarray(state)
+#             s = np.swapaxes(s,1,0)
+#             print(s)
+#             print(engine)
+#             print('reward ' , reward, done)
+#             time.sleep(1)
             if done:
                 state = None
                 
@@ -270,7 +300,7 @@ if __name__ == '__main__':
 #             if i_episode == 100:
 #                 print(engine)
             # Store the transition in memory
-            episode.append([last_state, action, state, reward])
+            episode.append([last_state, placement, other_score, state, reward])
     
             # Perform one step of the optimization (on the target network)
             if done:
