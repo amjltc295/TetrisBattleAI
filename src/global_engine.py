@@ -11,6 +11,7 @@ def parse_args():
     parser.add_argument('-ww', '--width', type=int, default=10, help='Window width')
     parser.add_argument('-hh', '--height', type=int, default=16, help='Window height')
     parser.add_argument('-n', '--player_num', type=int, default=2, help='Number of players')
+    parser.add_argument('-b', '--block_size', type=int, default=30, help='Set block size to enlarge GUI')
     parser.add_argument('-g', '--active_gui', type=int, default=0, help='Active output to gui')
     parser.add_argument('-f', '--step_to_final', default=False, action='store_true',
                         help='One step to the final location')
@@ -20,7 +21,7 @@ def parse_args():
 
 class GlobalEngine:
     def __init__(
-        self, width, height, player_num, active_gui,
+        self, width, height, player_num, active_gui, block_size,
         game_time=120, KO_num_to_win=2
     ):
         self.width = width
@@ -32,6 +33,7 @@ class GlobalEngine:
 
         # For GUI use
         self.gui = None
+        self.block_size = block_size
         self.gui_input = '-'
         self.active_gui = active_gui
         self.pause = False
@@ -47,7 +49,7 @@ class GlobalEngine:
     def setup(self):
         # Initialization
         if self.active_gui:
-            gui = GUI(global_engine)
+            gui = GUI(global_engine, self.block_size)
             global_engine.gui = gui
         else:
             self.stdscr = curses.initscr()
@@ -182,5 +184,5 @@ class GlobalEngine:
 
 if __name__ == '__main__':
     args = parse_args()
-    global_engine = GlobalEngine(args.width, args.height, args.player_num, args.active_gui)
+    global_engine = GlobalEngine(args.width, args.height, args.player_num, args.active_gui, args.block_size)
     dbs = global_engine.play_game(args.step_to_final)
