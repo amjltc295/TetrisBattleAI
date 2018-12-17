@@ -70,7 +70,7 @@ def idle(shape, anchor, board):
 
 
 class TetrisEngine:
-    def __init__(self, width, height):
+    def __init__(self, width, height, enable_KO=True):
         self.width = width
         self.height = height
         self.board = np.zeros(shape=(width, height), dtype=np.float)
@@ -111,6 +111,8 @@ class TetrisEngine:
         self.hold_shape = []
         self.hold_shape_name = None
         self.next_shape_name, self.next_shape = self._choose_shape()
+
+        self.enable_KO = enable_KO  # clear only the garbage lines after dead
 
         # clear after initializing
         self.clear()
@@ -215,6 +217,10 @@ class TetrisEngine:
         return state, reward, done, cleared_lines
 
     def clear(self):
+        if not self.enable_KO:
+            self.time = 0
+            self.score = 0
+            self.board = np.zeros_like(self.board)
         self._new_piece()
         self.hold_locked = False
         self.bomb_lines = 0
