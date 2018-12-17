@@ -3,6 +3,7 @@ import curses
 import time
 
 from engine import TetrisEngine
+from src.gui.gui import GUI
 
 
 def parse_args():
@@ -10,6 +11,8 @@ def parse_args():
     parser.add_argument('-ww', '--width', type=int, default=10, help='Window width')
     parser.add_argument('-hh', '--height', type=int, default=16, help='Window height')
     parser.add_argument('-n', '--player_num', type=int, default=2, help='Number of players')
+    parser.add_argument('-g', '--active_gui', action='store_true', defaul=False,
+                        help='Active output to gui')
     parser.add_argument('-f', '--step_to_final', default=False, action='store_true',
                         help='One step to the final location')
     args = parser.parse_args()
@@ -18,8 +21,8 @@ def parse_args():
 
 class GlobalEngine:
     def __init__(
-        self, width, height, player_num, game_time=120,
-        KO_num_to_win=2
+        self, width, height, player_num, active_gui,
+        game_time=120, KO_num_to_win=2
     ):
         self.width = width
         self.height = height
@@ -27,6 +30,12 @@ class GlobalEngine:
         self.game_time = game_time
         self.KO_num_to_win = KO_num_to_win
         self.winner = None
+
+        # For GUI use
+        self.gui = None
+        self.gui_input = '-'
+        self.active_gui = active_gui
+        self.pause = False
 
         self.engines = {}
         for i in range(player_num):
@@ -38,7 +47,6 @@ class GlobalEngine:
 
     def setup(self):
         # Initialization
-
         self.stdscr = curses.initscr()
 
         # Store play information
@@ -104,14 +112,17 @@ class GlobalEngine:
                 max_score = score
 
     def get_action(self, step_to_final):
+        key = self.stdscr.getch()
+        if self.active_gui:
+            key = self.gui_input
+            self.gui_input = '-'    # Reset input
         if step_to_final:
-            move = chr(self.stdscr.getch())
+            move = chr(key)
             if move == '-':
-                move += chr(self.stdscr.getch())
-            rotate = chr(self.stdscr.getch())
+                move += chr(key)
+            rotate = chr(key)
             action = f"move_{move}_right_rotate_{rotate}"
         else:
-            key = self.stdscr.getch()
             action = self.keyboard_control(key)
         return action
 
@@ -162,5 +173,7 @@ class GlobalEngine:
 
 if __name__ == '__main__':
     args = parse_args()
-    global_engine = GlobalEngine(args.width, args.height, args.player_num)
+    global_engine = GlobalEngine(args.width, args.height, args.player_num, args.active_gui)
+    if args.active_gui:
+        gui = GUI(global_engine)
     dbs = global_engine.play_game(args.step_to_final)

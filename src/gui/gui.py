@@ -91,8 +91,8 @@ class GUI:
         board = self.global_state.engines[player_id].board
         for x in range(self.global_state.width):
             for y in range(self.global_state.height):
-                dx = x_start + UIVariables.block_size * x
-                dy = y_start + UIVariables.block_size * y
+                dx = x_start + 96 + UIVariables.block_size * x
+                dy = y_start + 0 + UIVariables.block_size * y
                 self.draw_block(dx, dy, UIVariables.t_color[board[x][y + 1]])
 
     # Draw score bar for one player
@@ -108,14 +108,14 @@ class GUI:
         text_hold = UIVariables.h5.render("HOLD", 1, UIVariables.black)
         text_next = UIVariables.h5.render("NEXT", 1, UIVariables.black)
         text_score = UIVariables.h5.render("SCORE", 1, UIVariables.black)
-        score_value = UIVariables.h4.render(str(self.global_state.engines[player_id].score)
-                                            , 1, UIVariables.black)
+        score_value = UIVariables.h4.render(str(self.global_state.engines[player_id].score),
+                                            1, UIVariables.black)
         text_lines = UIVariables.h5.render("Total cleared lines", 1, UIVariables.black)
-        lines_value = UIVariables.h4.render(str(self.global_state.engines[player_id].total_cleared_lines)
-                                            , 1, UIVariables.black)
+        lines_value = UIVariables.h4.render(str(self.global_state.engines[player_id].total_cleared_lines),
+                                            1, UIVariables.black)
         text_ko = UIVariables.h5.render("KO's", 1, UIVariables.black)
-        ko_value = UIVariables.h4.render(str(self.global_state.engines[player_id].n_deaths)
-                                         , 1, UIVariables.black)
+        ko_value = UIVariables.h4.render(str(self.global_state.engines[player_id].n_deaths),
+                                         1, UIVariables.black)
 
         # Place texts
         self.screen.blit(text_hold, (x_start + 15, y_start + 14))
@@ -164,7 +164,7 @@ class GUI:
         self.screen.fill(UIVariables.grey_1)
 
         # Draw score bar
-        self.draw_score(x_start, y_start, player_id)    # TODO
+        self.draw_score(x_start, y_start, player_id)
 
         # Draw next mino
         self.draw_next_mino(x_start, y_start, player_id)
@@ -173,7 +173,16 @@ class GUI:
         self.draw_hold_mino(x_start, y_start, player_id)
 
         # Draw board
-        self.draw_board(x_start, y_start, player_id)    # TODO
+        self.draw_board(x_start, y_start, player_id)
+
+    # Render all players screen
+    # Limited to 2 players right now
+    def draw_all_screen(self):
+        if self.global_state.player_num != 2:
+            pygame.quit()
+            exit(10)
+        for t in range(0, self.global_state.player_num):
+            self.draw_one_screen(t*400, 0, t)
 
     # TODO
     def draw_statistics(self):
@@ -187,7 +196,7 @@ class GUI:
                     self.done = True
                 elif event.type == pygame.USEREVENT:
                     pygame.time.set_timer(pygame.USEREVENT, 300)
-                    self.draw_board()
+                    self.draw_all_screen()
 
                     pause_text = UIVariables.h2_b.render("PAUSED", 1, UIVariables.white)
                     pause_start = UIVariables.h5.render("Press esc to continue", 1, UIVariables.white)
@@ -202,6 +211,7 @@ class GUI:
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         self.pause = False
+                        self.global_state.pause = False
                         pygame.time.set_timer(pygame.USEREVENT, 1)
 
         # Game screen
@@ -217,11 +227,11 @@ class GUI:
                             pygame.time.set_timer(pygame.USEREVENT, UIVariables.framerate * 1)
                         else:
                             pygame.time.set_timer(pygame.USEREVENT, UIVariables.framerate * 10)
-                    # Draw board
-                    self.draw_board()
                 elif event.type == pygame.KEYDOWN:
                     keys_pressed = pygame.key.get_pressed()
-
+                    if self.global_state.gui_input != '-':
+                        self.global_state.gui_input = keys_pressed
+            self.draw_all_screen()
             pygame.display.update()
 
         # Game over screen
@@ -232,7 +242,6 @@ class GUI:
                 elif event.type == pygame.USEREVENT:
                     pygame.time.set_timer(pygame.USEREVENT, 300)
 
-                    # TODO: show statistics screen
                     self.draw_statistics()
 
                     # Show "Game over"
