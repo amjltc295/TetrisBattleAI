@@ -196,6 +196,7 @@ class TetrisEngine:
             reward = -10
         else:
             self._new_piece()
+            self.holded = False
         return cleared_lines, reward, done
 
     def step_to_final(self, action):
