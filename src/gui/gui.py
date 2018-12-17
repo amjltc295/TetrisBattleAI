@@ -256,6 +256,7 @@ class GUI:
 
     # Updates the whole screen on call
     def update_screen(self):
+        pygame.time.wait(UIVariables.framerate)
         self._draw_all_screen()
 
     # Get last keyboard input since last calling this function
@@ -291,8 +292,8 @@ class GUI:
             events = pygame.event.get()
             for event in reversed(events):
                 if event.type == pygame.KEYDOWN:
-                    keys_pressed = pygame.key.get_pressed()
-                    return keys_pressed
+                    key_pressed = event.key
+                    return key_pressed
 
         # Game over screen
         elif self.game_over:
@@ -320,10 +321,3 @@ class GUI:
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         pygame.quit()
-
-
-def gui_start(start_gui):
-    while True:
-        # Update the gui depending on the framerate
-        pygame.time.wait(UIVariables.framerate)
-        start_gui.draw_whole_screen()
