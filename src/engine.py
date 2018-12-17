@@ -107,7 +107,7 @@ class TetrisEngine:
         self.highest_line = 0
         self.drop_count = 0
         self.step_num_to_drop = 30
-        self.holded = False
+        self.hold_locked = False
         self.hold_shape = []
         self.hold_shape_name = None
         self.next_shape_name, self.next_shape = self._choose_shape()
@@ -196,7 +196,7 @@ class TetrisEngine:
             reward = -10
         else:
             self._new_piece()
-            self.holded = False
+            self.hold_locked = False
         return cleared_lines, reward, done
 
     def step_to_final(self, action):
@@ -216,7 +216,7 @@ class TetrisEngine:
 
     def clear(self):
         self._new_piece()
-        self.holded = False
+        self.hold_locked = False
         self.bomb_lines = 0
         self.highest_line = 0
 
@@ -272,10 +272,10 @@ class TetrisEngine:
                 self.highest_line = self.height - i
 
     def hold(self, shape, anchor, board):
-        if self.holded:
+        if self.hold_locked:
             return (shape, anchor)
         else:
-            self.holded = True
+            self.hold_locked = True
             tmp_shape_name = self.shape_name
             if len(self.hold_shape) == 0:
                 self._new_piece()

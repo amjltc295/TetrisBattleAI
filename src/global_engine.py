@@ -68,7 +68,7 @@ class GlobalEngine:
                 "lines_sent": 0,
                 "hold_shape": None,
                 "hold_shape_name": None,
-                "holded": False,
+                "hold_locked": False,
                 "bomb_lines": 0,
                 "highest_line": 0
             }
@@ -175,7 +175,7 @@ class GlobalEngine:
     def set_engine_state(self, idx, engine, reward, cleared_lines):
         self.engine_states[idx]['bomb_lines'] = engine.bomb_lines
         self.engine_states[idx]['highest_line'] = engine.highest_line
-        self.engine_states[idx]['holded'] = engine.holded
+        self.engine_states[idx]['hold_locked'] = engine.hold_locked
         self.engine_states[idx]['hold_shape'] = engine.hold_shape
         self.engine_states[idx]['hold_shape_name'] = engine.hold_shape_name
         self.engine_states[idx]['shape_name'] = engine.shape_name
