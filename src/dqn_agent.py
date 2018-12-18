@@ -400,7 +400,7 @@ if __name__ == '__main__':
         for t in count():
             # Select and perform an action
     
-            action, placement = select_action(cached_model, state, engine, engine.shape, engine.anchor, engine.board)
+            action, placement = select_action(model, state, engine, engine.shape, engine.anchor, engine.board)
             # Observations
             last_state = state
             
