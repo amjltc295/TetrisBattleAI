@@ -15,7 +15,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-
+from collections import deque
 from engine import TetrisEngine
 
 width, height = 10, 20 # standard tetris friends rules
@@ -79,23 +79,20 @@ optimizer = optim.Adam(model.parameters(), lr=.001)
 
 def entropy(act_prob):
     assert len(act_prob.shape) == 1
-    entropy = torch.mean(-torch.log(act_prob + eps) * act_prob)
+    entropy = torch.sum(-torch.log(act_prob + eps) * act_prob)
     return entropy
 
 def discount_rewards(rewards):
     rewards = np.array(rewards, dtype=np.float)
     discounted_rewards = np.zeros_like(rewards)
     running_add = 0
-    for t in reversed(range(0, rewards.size)):
-        if t == rewards.size-1:
-            discounted_rewards[t] = rewards[t]
-            continue
+    for t in reversed(range(0, len(rewards))):
         if rewards[t] != 0:
             running_add = 0
         running_add = running_add * GAMMA + rewards[t]
         discounted_rewards[t] = running_add
     rewards = discounted_rewards
-    rewards = (rewards - rewards.mean()) / (rewards.std())
+#     rewards = (rewards - rewards.mean()) / (rewards.std())
     return rewards
 
 def get_action_probability(model, state, act_pairs):
@@ -107,43 +104,7 @@ def get_action_probability(model, state, act_pairs):
     act_prob = F.softmax(act_score, dim=0)
     return act_prob
 
-def select_action(model, state, engine, shape, anchor, board):
-    model.eval()
-    action_final_location_map = engine.get_valid_final_states(shape, anchor, board)
-    act_pairs = [k:v[2] for k,v in action_final_location_map.items()]
-    
-    with torch.no_grad():
-        act_prob = get_action_probability(model, state, act_pairs)
-        
-    act_idx = int(np.random.choice(len(act_prob), 1, p=act_prob.cpu().numpy()))
-    act, placement = act_pairs[act_idx]
-    return act, placement
 
-def optimize_model(model, engine, episode):
-    batch = Transition(*zip(*episode))
-
-    model.train()
-    loss = 0
-    state_batch = torch.cat([FloatTensor(s)[None, None,:,:] for s in batch.state])
-    rewards = discount_rewards(batch.reward)
-    for i in range(len(batch)):
-        state = FloatTensor(batch.state[i])[None, None,:,:]
-        shape = batch.shape[i]
-        action = batch.action[i]
-        anchor = batch.anchor[i]
-        board = batch.board[i]
-        act_pairs = [k:v[2] for k, v in engine.get_valid_final_states(shape, anchor, board).items()]
-        act_prob = get_action_probability(model, state, act_pairs)
-        action_idx = [k for k, v in act_pairs].index(action)
-        loss += -torch.log(act_prob[action_idx] + eps) * rewards[i] - entropy(act_prob)
-        
-    # Optimize the model
-    optimizer.zero_grad()
-    loss.backward()
-    for param in model.parameters():
-        param.grad.data.clamp_(-1, 1)
-    optimizer.step()
-    return loss
 
 
 def save_checkpoint(state, is_best, filename, best_name ):
@@ -159,8 +120,6 @@ def load_checkpoint(filename):
         optimizer.load_state_dict(checkpoint['optimizer'])
     except Exception as e:
         pass
-    # Low chance of random action
-    #steps_done = 10 * EPS_DECAY
 
     return checkpoint['epoch'], checkpoint['best_score']
 
@@ -180,48 +139,61 @@ if __name__ == '__main__':
             print("=> no checkpoint found at '{}'".format(CHECKPOINT_FILE))
 
     ######################################################################
-    #
-    # Below, you can find the main training loop. At the beginning we reset
-    # the environment and initialize the ``state`` variable. Then, we sample
-    # an action, execute it, observe the next screen and the reward (always
-    # 1), and optimize our model once. When the episode ends (our model
-    # fails), we restart the loop.
-    
-    f = open('log.out', 'w+')
+    checkpoint = torch.load('./pg_best.pth.tar')
+    model.load_state_dict(checkpoint['state_dict'])
+    r_q = deque(maxlen = 1000)
+    for i in range(100):
+        r_q.append(-90)
+    model.train()
+    f = open('pg_original_reward.out', 'w+')
     for i_episode in count(start_epoch):
         # Initialize the environment and state
         state = engine.clear()
         score = 0
-        episode = []
-        reward_sum = 0
+        rewards = []
+        entropy_loss = 0
+        act_prob_list = []
         for t in count():
             # Select and perform an action
-    
-            action, placement, other_score = select_action(state, engine)
+            action_final_location_map = engine.get_valid_final_states(engine.shape, engine.anchor, engine.board)
+            act_pairs = [ (k, v[2]) for k,v in action_final_location_map.items()]
+
+            act_prob = get_action_probability(model, state, act_pairs)
+            act_idx = int(np.random.choice(len(act_prob), 1, p=act_prob.cpu().detach().numpy()))
+            act_prob_list.append(act_prob[act_idx].unsqueeze(0))
+            entropy_loss += -entropy(act_prob)
+            act, placement = act_pairs[act_idx]
+
             # Observations
-            last_state = state
-            state, reward, done, cleared_lines = engine.step_to_final(action)
-            if done:
-                state = None
-                
+            state, reward, done, cleared_lines = engine.step_to_final(act)
             # Accumulate reward
-#             score += reward
             score += cleared_lines
-            reward_sum += reward
-#              ('state', 'action', 'shape', 'anchor', 'board', 'reward'))
-            episode.append([last_state, placement, other_score, state, reward])
-    
-            # Perform one step of the optimization (on the target network)
+            rewards.append(reward)
+            
+        
             if done:
-                loss = optimize_model(model, engine, episode)
+#                 Optimize the model
+#                 discounted_rewards = FloatTensor(discount_rewards(rewards))
+                baseline = np.mean(r_q)
+                R = sum(rewards)
+                discounted_rewards = [0]*len(rewards)
+                discounted_rewards[-1] = R - baseline
+                discounted_rewards = FloatTensor(discount_rewards(discounted_rewards))
+#                 print(discounted_rewards)
+                act_probs = torch.cat(act_prob_list, dim=0)
+                loss = torch.sum(-torch.log(act_probs + eps) * discounted_rewards) + 0.01*entropy_loss
+                optimizer.zero_grad()
+                loss.backward()
+                for param in model.parameters():
+                    param.grad.data.clamp_(-1, 1)
+                optimizer.step()
+                r_q.append(R)
+                log = 'epoch {0} score {1} rewards {2} baseline {3}'.format(i_episode, '%.2f' % score, '%.2f' % R, '%.2f' % baseline)
+                f.write(log + '\n')
                 # Train model
                 if i_episode % 10 == 0:
     
-                    log = 'epoch {0} score {1} rewards {2}'.format(i_episode, '%.2f' % score, '%.2f' % reward_sum)
                     print(log)
-                    f.write(log + '\n')
-    
-    
                     if loss:
                         print('loss: {:.2f}'.format(loss))
                 # Checkpoint
@@ -239,7 +211,3 @@ if __name__ == '__main__':
 
     f.close()
     print('Complete')
-    #env.render(close=True)
-    #env.close()
-    #plt.ioff()
-    #plt.show()
