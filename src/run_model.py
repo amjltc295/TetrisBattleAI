@@ -33,8 +33,8 @@ def run(model):
     with torch.no_grad():
         while True:
 
-            # action, placement = select_action(model, state, engine, engine.shape, engine.anchor, engine.board)
-            action, placement = fixed_policy_agent.select_action(engine, engine.shape, engine.anchor, engine.board)
+            action, placement = select_action(model, state, engine, engine.shape, engine.anchor, engine.board)
+            # action, placement = fixed_policy_agent.select_action(engine, engine.shape, engine.anchor, engine.board)
 
             state, reward, done, cleared_lines = engine.step_to_final(action)
             state = FloatTensor(state[None,None,:,:])

@@ -15,9 +15,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-
+import time
 from engine import TetrisEngine
-import fixed_policy_agent 
+import fixed_policy_agent
 
 # width, height = 10, 20  # standard tetris friends rules
 width, height = 10, 20  # standard tetris friends rules
@@ -45,7 +45,7 @@ ByteTensor = torch.cuda.ByteTensor if use_cuda else torch.ByteTensor
 #
 
 Transition = namedtuple('Transition',
-                        ('state', 'next_state', 'placement', 'next_shape', 'next_anchor', 'next_board', 'reward'))
+                        ('state', 'placement', 'next_state', 'next_shape', 'next_anchor', 'next_board', 'reward'))
 
 
 class ReplayMemory(object):
@@ -208,8 +208,8 @@ class DQN(nn.Module):
 BATCH_SIZE = 128
 GAMMA = 0.99
 EPS_START = 1
-EPS_END = 0.05
-EPS_DECAY = 30000
+EPS_END = 0.1
+EPS_DECAY = 300000
 # GAMMA = 0.999
 # EPS_START = 0.9
 # EPS_END = 0.05
@@ -235,7 +235,7 @@ if use_cuda:
 # loss_criterion = nn.MSELoss()
 # optimizer = optim.RMSprop(model.parameters(), lr=.001)
 optimizer = optim.Adam(model.parameters(), lr=.001)
-memory = ReplayMemory(200000)
+memory = ReplayMemory(20000)
 
 def get_max_Q(model, state, engine, shape, anchor, board):
     action_final_location_map = engine.get_valid_final_states(shape, anchor, board)
@@ -262,13 +262,12 @@ def select_action(model, state, engine, shape, anchor, board):
     else:
         action_final_location_map = engine.get_valid_final_states(shape, anchor, board)
         act_pairs = [ (k,v[2]) for k,v in action_final_location_map.items()]
-    
-        if random.randrange(2) == 0:
+        if random.random() <= 0.3:
             idx = random.randrange(len(act_pairs))
             act, placement = act_pairs[idx]
             return act, placement
         else:
-            return ga_agent.select_action(engine, engine.shape, engine.anchor, engine.board)
+            return fixed_policy_agent.select_action(engine, engine.shape, engine.anchor, engine.board)
             
         
 def cal_eps():
@@ -358,8 +357,8 @@ def optimize_model():
     # Optimize the model
     optimizer.zero_grad()
     loss.backward()
-#     for param in model.parameters():
-#         param.grad.data.clamp_(-1, 1)
+    for param in model.parameters():
+        param.grad.data.clamp_(-1, 1)
     optimizer.step()
     return loss
 
@@ -413,7 +412,7 @@ if __name__ == '__main__':
         # Initialize the environment and state
         state = engine.clear()
         score = 0
-    
+        reward_sum = 0
         for t in count():
             # Select and perform an action
     
@@ -424,28 +423,31 @@ if __name__ == '__main__':
             state, reward, done, cleared_lines = engine.step_to_final(action)
             
             if done:
-                data = (last_state, state, placement, None, None,
+                data = (last_state, placement, state, None, None,
                     None, reward)
             else:
-                data = (last_state, state, placement, deepcopy(engine.shape), deepcopy(engine.anchor),
+                data = (last_state, placement, state, deepcopy(engine.shape), deepcopy(engine.anchor),
                     deepcopy(engine.board), reward)
             
             memory.push(*data)
             # Accumulate reward
-            score += reward
+#             score += reward
+            score += cleared_lines
+            reward_sum += reward
+
 
             # Perform one step of the optimization (on the target network)
-            if done:
+            if done or t >= 200:
                 loss = optimize_model()
-#                 loss = 0
                 # Train model
                 if i_episode % 10 == 0:
     
-                    log = 'epoch {0} score {1} eps {2}'.format(i_episode, '%.2f' % score, cal_eps())
+                    log = 'epoch {0} score {1} rewards {3} eps {2}'.format(i_episode, '%.2f' % score, cal_eps(),
+                                                                         '%.2f' % reward_sum)
                     print(log)
                     f.write(log + '\n')
     
-    
+                
                     if loss:
                         print('loss: {:.2f}'.format(loss))
                 # Checkpoint

@@ -61,7 +61,7 @@ class PG(nn.Module):
     
     
 
-GAMMA = 0.99
+GAMMA = 0.9
 CHECKPOINT_FILE = 'pg.pth.tar'
 
 
@@ -94,6 +94,8 @@ def discount_rewards(rewards):
     rewards = discounted_rewards
 #     rewards = (rewards - rewards.mean()) / (rewards.std())
     return rewards
+
+
 
 def get_action_probability(model, state, act_pairs):
     

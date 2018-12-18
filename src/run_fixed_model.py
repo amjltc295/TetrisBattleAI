@@ -18,9 +18,10 @@ def run():
         score += int(cleared_lines)
 
         print(engine)
+        print('reward : %.2f' % reward)
         print('score : %d' % score)
         # print(action)
-        time.sleep(.1)
+        time.sleep(1)
 
         if done:
             print('score {0}'.format(score))

@@ -1,9 +1,9 @@
 from copy import deepcopy
 import random
-
-import numpy as np
 import heuristic
-shapes ={
+import numpy as np
+
+shapes = {
     'T': [(0, 0), (-1, 0), (1, 0), (0, -1)],
     'J': [(0, 0), (-1, 0), (0, -1), (0, -2)],
     'L': [(0, 0), (1, 0), (0, -1), (0, -2)],
@@ -12,8 +12,6 @@ shapes ={
     'I': [(0, 0), (0, -1), (0, -2), (0, -3)],
     'O': [(0, 0), (0, -1), (-1, 0), (-1, -1)],
 }
-# shapes = {k:[(0, 0), (-1, 0), (1, 0), (0, -1)] for k,v in shapes.items()}
-# shape_names = shapes.keys()
 shape_names = ['T', 'J', 'L', 'Z', 'S', 'I', 'O']
 
 
@@ -86,16 +84,8 @@ class TetrisEngine:
             4: rotate_left,
             5: rotate_right,
             6: idle,
-#             7: self.hold,
+            7: self.hold,
         }
-#         self.value_action_map = {
-#             0: left,
-#             1: right,
-#             2: rotate_left,
-#             3: rotate_right,
-#             4: idle,
-#         }
-        
         self.action_value_map = dict([(j, i) for i, j in self.value_action_map.items()])
         self.nb_actions = len(self.value_action_map)
 
@@ -123,7 +113,7 @@ class TetrisEngine:
         self.next_shape_name, self.next_shape = self._choose_shape()
 
         # clear after initializing
-        self.pre_state = None
+        self.pre_board = None
         self.clear()
 
     def _choose_shape(self):
@@ -223,13 +213,15 @@ class TetrisEngine:
         self.board = self.set_piece(self.shape, self.anchor, self.board, False)
         self._update_states()
         
-#         
-#         reward = heuristic.heuristic_fn(state, cleared_lines) - heuristic.heuristic_fn(self.pre_state , 0)
+#         reward = heuristic.heuristic_fn(self.board, cleared_lines) - heuristic.heuristic_fn(self.pre_board , 0)
+#         self.pre_board = deepcopy(self.board)
 #         reward = heuristic.heuristic_fn(state, cleared_lines)
-#         self.pre_state = np.copy(self.board)
 #         reward = heuristic.heuristic_fn(state, cleared_lines)
-#         r = {0:0, 1:40,: }
-        reward = cleared_lines
+#         r = {0:0, 1:40,: 2:120, 3:300, 4:1200}
+        if not done:
+            reward = cleared_lines ** 2
+        else:
+            reward = -100
 
         return state, reward, done, cleared_lines
 
@@ -239,7 +231,7 @@ class TetrisEngine:
         self.bomb_lines = 0
         self.highest_line = 0
         self.board = np.zeros_like(self.board)
-        self.pre_state = np.copy(self.board)
+        self.pre_board = deepcopy(self.board)
         return self.board
 
     def set_piece(self, shape, anchor, board, on=False):
@@ -252,8 +244,8 @@ class TetrisEngine:
 
     def __repr__(self):
         self.board = self.set_piece(self.shape, self.anchor, self.board, True)
-        s = "Hold: {self.hold_shape_name}\n"
-        s += "Next: {self.next_shape_name}\n"
+        s = f"Hold: {self.hold_shape_name}\n"
+        s += f"Next: {self.next_shape_name}\n"
         s += 'o' + '-' * self.width + 'o'
         for line in self.board.T[1:]:
             display_line = ['\n|']
@@ -321,7 +313,7 @@ class TetrisEngine:
         # Reference https://github.com/brendanberg01/TetrisAI/blob/master/ai.py
         action_state_dict = {}
         for move in range(-self.width // 2, self.width // 2):
-            for rotate in range(0, 4):
+            for rotate in range(0, 3):
                 final_shape, final_anchor, final_board = shape, anchor, deepcopy(board)
                 for i in range(rotate):
                     final_shape, final_anchor = rotate_right(final_shape, final_anchor, board)
