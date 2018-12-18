@@ -119,9 +119,9 @@ class DQN(nn.Module):
         
         # self.bn3 = nn.BatchNorm2d(32)
         # self.rnn = nn.LSTM(448, 240)
-        self.lin1 = nn.Linear(640, 128)
-        self.lin2 = nn.Linear(640, 128)
-        self.lin3 = nn.Linear(2*128, 1)
+        self.lin1 = nn.Linear(320, 64)
+        self.lin2 = nn.Linear(320, 64)
+        self.lin3 = nn.Linear(2*64, 1)
         
     def forward(self, x, placement):
         batch,_,_,_ = x.shape
@@ -142,18 +142,18 @@ class CNN_lay(nn.Module):
     def __init__(self):
         super(CNN_lay, self).__init__()
         self.drop = nn.Dropout2d(0.05)
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=5, stride=1, padding=2)
-        self.bn1 = nn.BatchNorm2d(32)
-        self.conv2 = nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1)
-        self.bn2 = nn.BatchNorm2d(32)
+        self.conv1 = nn.Conv2d(1, 16, kernel_size=5, stride=1, padding=2)
+        self.bn1 = nn.BatchNorm2d(16)
+        self.conv2 = nn.Conv2d(16, 16, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(16)
 #         self.conv3 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
 #         self.bn3 = nn.BatchNorm2d(64)
         
-        self.conv_collapse = nn.Conv2d(32, 64, kernel_size=(1,20), stride=1)
-        self.bn4 = nn.BatchNorm2d(64)
+        self.conv_collapse = nn.Conv2d(16, 32, kernel_size=(1,20), stride=1)
+        self.bn4 = nn.BatchNorm2d(32)
         
-        self.conv5 = nn.Conv2d(64, 64, kernel_size=(3,1), stride=1, padding=(1,0))
-        self.bn5 = nn.BatchNorm2d(64)
+        self.conv5 = nn.Conv2d(32, 32, kernel_size=(3,1), stride=1, padding=(1,0))
+        self.bn5 = nn.BatchNorm2d(32)
 #         self.conv6 = nn.Conv2d(128, 128, kernel_size=(1,1), stride=1, padding=(0,0))
 #         self.bn6 = nn.BatchNorm2d(128)
 #         self.conv7 = nn.Conv2d(128, 128, kernel_size=(3,1), stride=1, padding=(1,0))
