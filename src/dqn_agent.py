@@ -113,77 +113,61 @@ class ReplayMemory(object):
 
 class DQN(nn.Module):
 
-#     def __init__(self):
-#         super(DQN, self).__init__()
-#         self.drop = nn.Dropout2d(0.05)
-#         self.conv1 = nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1)
-#         self.bn1 = nn.BatchNorm2d(32)
-#         self.conv2 = nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1)
-#         self.bn2 = nn.BatchNorm2d(32)
+    def __init__(self):
+        super(DQN, self).__init__()
+        self.cnn = CNN_lay()
+        
+        # self.bn3 = nn.BatchNorm2d(32)
+        # self.rnn = nn.LSTM(448, 240)
+        self.lin1 = nn.Linear(640, 128)
+        self.lin2 = nn.Linear(640, 128)
+        self.lin3 = nn.Linear(2*128, 1)
+        
+    def forward(self, x, placement):
+        batch,_,_,_ = x.shape
+        x = self.cnn(x)
+        x = x.view(batch, -1)
+        placement = self.cnn(placement)
+        placement = placement.view(batch, -1)
+        
+        x = F.relu(self.lin1(x))
+        placement = F.relu(self.lin2(placement))
+        
+        out = torch.cat([x, placement], dim=-1)
+        out = self.lin3(out)
+        return out
+
+class CNN_lay(nn.Module):
+
+    def __init__(self):
+        super(CNN_lay, self).__init__()
+        self.drop = nn.Dropout2d(0.05)
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=5, stride=1, padding=2)
+        self.bn1 = nn.BatchNorm2d(32)
+        self.conv2 = nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(32)
 #         self.conv3 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
 #         self.bn3 = nn.BatchNorm2d(64)
         
-#         self.conv_collapse = nn.Conv2d(64, 64, kernel_size=(1,20), stride=1)
-#         self.bn4 = nn.BatchNorm2d(64)
+        self.conv_collapse = nn.Conv2d(32, 64, kernel_size=(1,20), stride=1)
+        self.bn4 = nn.BatchNorm2d(64)
         
-#         self.conv5 = nn.Conv2d(64, 128, kernel_size=(3,1), stride=1, padding=(1,0))
-#         self.bn5 = nn.BatchNorm2d(128)
+        self.conv5 = nn.Conv2d(64, 64, kernel_size=(3,1), stride=1, padding=(1,0))
+        self.bn5 = nn.BatchNorm2d(64)
 #         self.conv6 = nn.Conv2d(128, 128, kernel_size=(1,1), stride=1, padding=(0,0))
 #         self.bn6 = nn.BatchNorm2d(128)
 #         self.conv7 = nn.Conv2d(128, 128, kernel_size=(3,1), stride=1, padding=(1,0))
 #         self.bn7 = nn.BatchNorm2d(128)
         
-        
-#         # self.bn3 = nn.BatchNorm2d(32)
-#         # self.rnn = nn.LSTM(448, 240)
-#         self.lin1 = nn.Linear(1280, 128)
-#         self.lin2 = nn.Linear(128, 512)
-#         self.lin3 = nn.Linear(512, engine.nb_actions)
-        
-#     def forward(self, x):
-#         x = F.relu(self.drop(self.bn1(self.conv1(x))))
-#         x = F.relu(self.drop(self.bn2(self.conv2(x))))
+    def forward(self, x):
+        x = F.relu(self.drop(self.bn1(self.conv1(x))))
+        x = F.relu(self.drop(self.bn2(self.conv2(x))))
 #         x = F.relu(self.drop(self.bn3(self.conv3(x))))
-#         x = F.relu(self.drop(self.bn4(self.conv_collapse(x))))
-#         x = F.relu(self.drop(self.bn5(self.conv5(x))))
+        x = F.relu(self.drop(self.bn4(self.conv_collapse(x))))
+        x = F.relu(self.drop(self.bn5(self.conv5(x))))
 #         x = F.relu(self.drop(self.bn6(self.conv6(x))))
 #         x = F.relu(self.drop(self.bn7(self.conv7(x))))
-        
-#         x = x.view(-1, 1280)
-#         x = F.relu(self.drop(self.lin1(x)))
-#         x = F.relu(self.drop(self.lin2(x)))
-#         x = F.relu(self.drop(self.lin3(x)))
-#         return x
-
-    def __init__(self):
-        super(DQN, self).__init__()
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=5, stride=1)
-        self.bn1 = nn.BatchNorm2d(32)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=2)
-        self.bn2 = nn.BatchNorm2d(64)
-        #self.conv3 = nn.Conv2d(32, 32, kernel_size=2, stride=2)
-        #self.bn3 = nn.BatchNorm2d(32)
-        #self.rnn = nn.LSTM(448, 240)
-        self.lin1 = nn.Linear(896, 256)
-#         self.lin1 = nn.Linear(448, 256)
-#         self.head = nn.Linear(256, engine.nb_actions)
-        self.head = nn.Linear(2*256, 1)
-
-    def forward(self, x, placement):
-        batch, ch, w, h = x.size()
-        x = F.relu(self.bn1(self.conv1(x)))
-        x = F.relu(self.bn2(self.conv2(x)))
-#         print(x.shape)
-        #x = F.relu(self.bn3(self.conv3(x)))
-        x = F.relu(self.lin1(x.view(batch, -1)))
-        
-        placement = F.relu(self.bn1(self.conv1(placement)))
-        placement = F.relu(self.bn2(self.conv2(placement)))
-        placement = F.relu(self.lin1(placement.view(batch, -1)))
-        
-        return self.head(torch.cat([x, placement], dim=-1))
-    
-    
+        return x
 
 ######################################################################
 # Training
