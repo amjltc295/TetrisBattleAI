@@ -113,59 +113,56 @@ class ReplayMemory(object):
 
 class DQN(nn.Module):
 
-#     def __init__(self):
-#         super(DQN, self).__init__()
-#         self.cnn = CNN_lay()
-        
-#         # self.bn3 = nn.BatchNorm2d(32)
-#         # self.rnn = nn.LSTM(448, 240)
-#         self.lin1 = nn.Linear(320, 64)
-#         self.V_lin = nn.Linear(64, 1)
-#         self.A_lin = nn.Linear(2*64, 1)
-        
-#     def forward(self, x, placement):
-#         batch,_,_,_ = x.shape
-#         x = self.cnn(x)
-#         x = x.view(batch, -1)
-#         placement = self.cnn(placement)
-#         placement = placement.view(batch, -1)
-        
-#         x = F.relu(self.lin1(x))
-#         placement = F.relu(self.lin1(placement))
-        
-#         V = self.V_lin(x)
-#         A = self.A_lin(torch.cat([x, placement], dim=-1))
-#         Q = V+A
-#         return Q
     def __init__(self):
         super(DQN, self).__init__()
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=5, stride=1)
-        self.bn1 = nn.BatchNorm2d(32)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=2)
-        self.bn2 = nn.BatchNorm2d(64)
-        #self.conv3 = nn.Conv2d(32, 32, kernel_size=2, stride=2)
-        #self.bn3 = nn.BatchNorm2d(32)
-        #self.rnn = nn.LSTM(448, 240)
-        self.lin1 = nn.Linear(896, 256)
-#         self.lin1 = nn.Linear(448, 256)
-#         self.head = nn.Linear(256, engine.nb_actions)
-        self.V = nn.Linear(256, 1)
-        self.head = nn.Linear(2*256, 1)
+        self.cnn = CNN_lay()
+        
+        # self.bn3 = nn.BatchNorm2d(32)
+        # self.rnn = nn.LSTM(448, 240)
+        self.lin1 = nn.Linear(320, 64)
+        self.Q_lin = nn.Linear(2*64, 1)
+        
+    def forward(self, x, placement):
+        batch,_,_,_ = x.shape
+        x = self.cnn(x)
+        x = x.view(batch, -1)
+        placement = self.cnn(placement)
+        placement = placement.view(batch, -1)
+        
+        x = F.relu(self.lin1(x))
+        placement = F.relu(self.lin1(placement))
+        
+        Q = self.Q_lin(torch.cat([x, placement], dim=-1))
+        return Q
+#     def __init__(self):
+#         super(DQN, self).__init__()
+#         self.conv1 = nn.Conv2d(1, 32, kernel_size=5, stride=1)
+#         self.bn1 = nn.BatchNorm2d(32)
+#         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=2)
+#         self.bn2 = nn.BatchNorm2d(64)
+#         #self.conv3 = nn.Conv2d(32, 32, kernel_size=2, stride=2)
+#         #self.bn3 = nn.BatchNorm2d(32)
+#         #self.rnn = nn.LSTM(448, 240)
+#         self.lin1 = nn.Linear(896, 256)
+# #         self.lin1 = nn.Linear(448, 256)
+# #         self.head = nn.Linear(256, engine.nb_actions)
+#         self.V = nn.Linear(256, 1)
+#         self.head = nn.Linear(2*256, 1)
     
 
-    def forward(self, x, placement):
-        batch, ch, w, h = x.size()
-        x = F.relu(self.bn1(self.conv1(x)))
-        x = F.relu(self.bn2(self.conv2(x)))
-#         print(x.shape)
-        #x = F.relu(self.bn3(self.conv3(x)))
-        x = F.relu(self.lin1(x.view(batch, -1)))
+#     def forward(self, x, placement):
+#         batch, ch, w, h = x.size()
+#         x = F.relu(self.bn1(self.conv1(x)))
+#         x = F.relu(self.bn2(self.conv2(x)))
+# #         print(x.shape)
+#         #x = F.relu(self.bn3(self.conv3(x)))
+#         x = F.relu(self.lin1(x.view(batch, -1)))
         
-        placement = F.relu(self.bn1(self.conv1(placement)))
-        placement = F.relu(self.bn2(self.conv2(placement)))
-        placement = F.relu(self.lin1(placement.view(batch, -1)))
+#         placement = F.relu(self.bn1(self.conv1(placement)))
+#         placement = F.relu(self.bn2(self.conv2(placement)))
+#         placement = F.relu(self.lin1(placement.view(batch, -1)))
         
-        return self.head(torch.cat([x, placement], dim=-1)) + self.V(x)
+#         return self.head(torch.cat([x, placement], dim=-1)) + self.V(x )
 
 class CNN_lay(nn.Module):
 
@@ -224,7 +221,6 @@ CHECKPOINT_FILE = 'checkpoint.pth.tar'
 steps_done = 0
 
 model = DQN()
-model.train()
 cached_model = DQN()
 cached_model.eval()
 for p in cached_model.parameters():
@@ -281,52 +277,12 @@ def cal_eps():
     return eps_threshold
 
 
-episode_durations = []
 
 
-'''
-def plot_durations():
-    plt.figure(2)
-    plt.clf()
-    durations_t = torch.FloatTensor(episode_durations)
-    plt.title('Training...')
-    plt.xlabel('Episode')
-    plt.ylabel('Duration')
-    plt.plot(durations_t.numpy())
-    # Take 100 episode averages and plot them too
-    if len(durations_t) >= 100:
-        means = durations_t.unfold(0, 100, 1).mean(1).view(-1)
-        means = torch.cat((torch.zeros(99), means))
-        plt.plot(means.numpy())
-
-    plt.pause(0.001)  # pause a bit so that plots are updated
-    if is_ipython:
-        display.clear_output(wait=True)
-        display.display(plt.gcf())
-'''
-
-
-######################################################################
-# Training loop
-# ^^^^^^^^^^^^^
-#
-# Finally, the code for training our model.
-#
-# Here, you can find an ``optimize_model`` function that performs a
-# single step of the optimization. It first samples a batch, concatenates
-# all the tensors into a single one, computes :math:`Q(s_t, a_t)` and
-# :math:`V(s_{t+1}) = \max_a Q(s_{t+1}, a)`, and combines them into our
-# loss. By defition we set :math:`V(s) = 0` if :math:`s` is a terminal
-# state.
-
-# ('state', 'placement', 'next_shape', 'next_anchor', 'next_board', 'reward'))
-last_sync = 0
 def optimize_model():
     if len(memory) < BATCH_SIZE:
         return
     transitions = memory.sample(BATCH_SIZE)
-    # Transpose the batch (see http://stackoverflow.com/a/19343/3343043 for
-    # detailed explanation).
     batch = Transition(*zip(*transitions))
 
     # Compute a mask of non-final states and concatenate the batch elements
@@ -418,6 +374,7 @@ if __name__ == '__main__':
         
         score = 0
         reward_sum = 0
+        model.eval()
         for t in count():
             # Select and perform an action
     
@@ -443,6 +400,7 @@ if __name__ == '__main__':
 
             # Perform one step of the optimization (on the target network)
             if done or t >= 200:
+                model.train()
                 loss = optimize_model()
                 # Train model
                 if i_episode % 10 == 0:
