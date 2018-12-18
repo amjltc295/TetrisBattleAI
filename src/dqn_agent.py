@@ -120,8 +120,8 @@ class DQN(nn.Module):
         # self.bn3 = nn.BatchNorm2d(32)
         # self.rnn = nn.LSTM(448, 240)
         self.lin1 = nn.Linear(320, 64)
-        self.lin2 = nn.Linear(320, 64)
-        self.lin3 = nn.Linear(2*64, 1)
+        self.V_lin = nn.Linear(64, 1)
+        self.A_lin = nn.Linear(2*64, 1)
         
     def forward(self, x, placement):
         batch,_,_,_ = x.shape
@@ -131,11 +131,12 @@ class DQN(nn.Module):
         placement = placement.view(batch, -1)
         
         x = F.relu(self.lin1(x))
-        placement = F.relu(self.lin2(placement))
+        placement = F.relu(self.lin1(placement))
         
-        out = torch.cat([x, placement], dim=-1)
-        out = self.lin3(out)
-        return out
+        V = self.V_lin(x)
+        A = self.A_lin(torch.cat([x, placement], dim=-1))
+        Q = V+A
+        return Q
 
 class CNN_lay(nn.Module):
 
@@ -193,7 +194,7 @@ BATCH_SIZE = 128
 GAMMA = 0.99
 EPS_START = 1
 EPS_END = 0.1
-EPS_DECAY = 300000
+EPS_DECAY = 30000
 # GAMMA = 0.999
 # EPS_START = 0.9
 # EPS_END = 0.05
