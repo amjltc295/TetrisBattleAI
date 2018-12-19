@@ -159,7 +159,7 @@ class GlobalEngine:
         self.compare_score()
         logger.info(f"Winner: {self.winner}")
         logger.info(f"States: {self.engine_states}")
-        curses.endwin()
+        self.tear_down()
 
         return self.dbs
 
@@ -216,5 +216,5 @@ if __name__ == '__main__':
     try:
         dbs = global_engine.play_game()
     except Exception as err:
-        global_engine.tear_down()
         logger.error(err, exc_info=True)
+        global_engine.tear_down()
