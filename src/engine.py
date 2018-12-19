@@ -207,7 +207,7 @@ class TetrisEngine:
         # actions that directly go to the final locations
         action_final_location_map = self.get_valid_final_states(
             self.shape, self.anchor, self.board)
-        self.shape, self.anchor, self.board = action_final_location_map[action]
+        self.shape, self.anchor, self.board, actions = action_final_location_map[action]
         cleared_lines, reward, done = self._handle_dropped(reward)
         self.board = self.set_piece(self.shape, self.anchor, self.board, True)
         state = np.copy(self.board)
@@ -308,20 +308,25 @@ class TetrisEngine:
         action_state_dict = {}
         for move in range(-self.width // 2, self.width // 2 + 1):
             for rotate in range(0, 4):
+                actions = []
                 final_shape, final_anchor, final_board = shape, anchor, deepcopy(board)
                 for i in range(rotate):
+                    actions.append(5)
                     final_shape, final_anchor = rotate_right(final_shape, final_anchor, board)
                 if move > 0:
                     for i in range(move):
+                        actions.append(1)
                         final_shape, final_anchor = right(final_shape, final_anchor, board)
                 else:
                     for i in range(-move):
+                        actions.append(0)
                         final_shape, final_anchor = left(final_shape, final_anchor, board)
 
+                actions.append(2)
                 final_shape, final_anchor = hard_drop(final_shape, final_anchor, board)
                 final_board = self.set_piece(final_shape, final_anchor, board, True)
                 action_name = f"move_{move}_right_rotate_{rotate}"
-                action_state_dict[action_name] = (final_shape, final_anchor, final_board)
+                action_state_dict[action_name] = (final_shape, final_anchor, final_board, actions)
         return action_state_dict
 
     def get_board(self):
