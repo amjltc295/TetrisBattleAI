@@ -26,7 +26,7 @@ def parse_args():
 class GlobalEngine:
     def __init__(
         self, width, height, player_num, use_gui, block_size,
-        game_time=120, KO_num_to_win=2
+        game_time=120, KO_num_to_win=2, enable_step_to_final=False
     ):
         self.width = width
         self.height = height
@@ -40,6 +40,8 @@ class GlobalEngine:
         self.block_size = block_size
         self.use_gui = use_gui
         self.pause = False
+
+        self.enable_step_to_final = enable_step_to_final
 
         self.engines = {}
         self.players = {}
@@ -124,23 +126,23 @@ class GlobalEngine:
                 self.winner = idx
                 max_score = score
 
-    def get_action(self, engine_idx, step_to_final):
+    def get_action(self, engine_idx):
         playert_type = self.players[engine_idx]
         if playert_type == 'keyboard':
-            return self.get_action_from_keyboard(step_to_final)
+            return self.get_action_from_keyboard()
         elif playert_type == 'fixed_policy_agent':
-            return self.get_action_from_fixed_policy_agent(step_to_final, self.engines[engine_idx])
+            return self.get_action_from_fixed_policy_agent(self.engines[engine_idx])
         else:
             raise NotImplementedError(f"Player type {playert_type} not exists")
 
-    def get_action_from_fixed_policy_agent(self, step_to_final, engine):
-        assert step_to_final
+    def get_action_from_fixed_policy_agent(self, engine):
+        assert self.enable_step_to_final
         action, placement = fixed_policy_agent.select_action(
             engine, engine.shape, engine.anchor, engine.board
         )
         return action
 
-    def get_action_from_keyboard(self, step_to_final):
+    def get_action_from_keyboard(self):
         def get_key():
             if self.use_gui:
                 key = self.gui.last_gui_input()
@@ -148,7 +150,7 @@ class GlobalEngine:
                 key = self.stdscr.getch()
             return key
         key = get_key()
-        if step_to_final:
+        if self.enable_step_to_final:
             move = chr(key)
             if move == '-':
                 key = get_key()
@@ -160,14 +162,14 @@ class GlobalEngine:
             action = self.keyboard_control(key)
         return action
 
-    def play_game(self, step_to_final=False):
+    def play_game(self):
         # Initialization
         self.setup()
 
         game_over = False
         while time.time() - self.start_time < self.game_time and not game_over:
             self.update_screen()
-            game_over = self.update_engines(step_to_final)
+            game_over = self.update_engines()
 
         self.compare_score()
         curses.endwin()
@@ -176,13 +178,13 @@ class GlobalEngine:
 
         return self.dbs
 
-    def update_engines(self, step_to_final):
+    def update_engines(self):
         game_over = False
         for idx, engine in self.engines.items():
-            action = self.get_action(idx, step_to_final)
+            action = self.get_action(idx)
 
             # Game step
-            if step_to_final:
+            if self.enable_step_to_final:
                 state, reward, self.done, cleared_lines = engine.step_to_final(action)
             else:
                 state, reward, self.done, cleared_lines = engine.step(action)
@@ -227,9 +229,11 @@ def signal_handler(sig, frame):
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
     args = parse_args()
-    global_engine = GlobalEngine(args.width, args.height, args.player_num, args.use_gui, args.block_size)
+    global_engine = GlobalEngine(
+        args.width, args.height, args.player_num, args.use_gui, args.block_size,
+        enable_step_to_final=args.step_to_final)
     try:
-        dbs = global_engine.play_game(args.step_to_final)
+        dbs = global_engine.play_game()
     except Exception as err:
         curses.endwin()
         logger.error(err, exc_info=True)
