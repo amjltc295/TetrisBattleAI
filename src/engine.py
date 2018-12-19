@@ -271,6 +271,9 @@ class TetrisEngine:
             new_board[:, -self.garbage_lines:] = -1
         for i in range(self.height - self.previous_garbage_lines - 1, -1, -1):
             new_board[:, i - (self.garbage_lines - self.previous_garbage_lines)] = self.board[:, i]
+        while is_occupied(self.shape, self.anchor, new_board):
+            self.anchor = (self.anchor[0], self.anchor[1] - 1)
+
         self.previous_garbage_lines = self.garbage_lines
         self.board = new_board
         for i in range(self.height - 1, -1, -1):
