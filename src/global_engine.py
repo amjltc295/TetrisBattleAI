@@ -48,6 +48,7 @@ class GlobalEngine:
                 self.players[i] = 'keyboard'
             else:
                 self.players[i] = 'fixed_policy_agent'
+                self.players[i] = 'keyboard'
             self.engines[i] = TetrisEngine(width, height)
             self.engines[i].clear()
 
@@ -140,22 +141,19 @@ class GlobalEngine:
         return action
 
     def get_action_from_keyboard(self, step_to_final):
-        if self.use_gui:
-            key = self.gui.last_gui_input()
-            """
-            while key not in self.key_action_map:
+        def get_key():
+            if self.use_gui:
                 key = self.gui.last_gui_input()
-                self.gui.update_screen()
-
-            """
-        else:
-            key = self.stdscr.getch()
+            else:
+                key = self.stdscr.getch()
+            return key
+        key = get_key()
         if step_to_final:
             move = chr(key)
             if move == '-':
-                key = self.stdscr.getch()
+                key = get_key()
                 move += chr(key)
-            key = self.stdscr.getch()
+            key = get_key()
             rotate = chr(key)
             action = f"move_{move}_right_rotate_{rotate}"
         else:
@@ -168,37 +166,45 @@ class GlobalEngine:
 
         game_over = False
         while time.time() - self.start_time < self.game_time and not game_over:
-            if not self.use_gui:
-                self.stdscr.clear()
-                for idx, engine in self.engines.items():
-                    self.stdscr.addstr(str(engine))
-                    self.stdscr.addstr(f'reward: {self.engine_states[idx]}\n')
-                self.stdscr.addstr(f'Time: {time.time() - self.start_time:.1f}\n')
+            self.update_screen()
+            game_over = self.update_engines(step_to_final)
 
-            for idx, engine in self.engines.items():
-                action = self.get_action(idx, step_to_final)
-
-                # Game step
-                if step_to_final:
-                    state, reward, self.done, cleared_lines = engine.step_to_final(action)
-                else:
-                    state, reward, self.done, cleared_lines = engine.step(action)
-
-                # Update state
-                self.set_engine_state(idx, engine, reward, cleared_lines)
-                self.sent_lines(idx, cleared_lines)
-                self.dbs[idx].append((state, reward, self.done, action))
-
-                if self.engine_states[idx]['KO'] >= self.KO_num_to_win:
-                    game_over = True
-            if self.use_gui:
-                self.gui.update_screen()
         self.compare_score()
         curses.endwin()
         logger.info(f"Winner: {self.winner}")
         logger.info(f"States: {self.engine_states}")
 
         return self.dbs
+
+    def update_engines(self, step_to_final):
+        game_over = False
+        for idx, engine in self.engines.items():
+            action = self.get_action(idx, step_to_final)
+
+            # Game step
+            if step_to_final:
+                state, reward, self.done, cleared_lines = engine.step_to_final(action)
+            else:
+                state, reward, self.done, cleared_lines = engine.step(action)
+
+            # Update state
+            self.set_engine_state(idx, engine, reward, cleared_lines)
+            self.sent_lines(idx, cleared_lines)
+            self.dbs[idx].append((state, reward, self.done, action))
+
+            if self.engine_states[idx]['KO'] >= self.KO_num_to_win:
+                game_over = True
+        return game_over
+
+    def update_screen(self):
+        if self.use_gui:
+            self.gui.update_screen()
+        else:
+            self.stdscr.clear()
+            for idx, engine in self.engines.items():
+                self.stdscr.addstr(str(engine))
+                self.stdscr.addstr(f'reward: {self.engine_states[idx]}\n')
+            self.stdscr.addstr(f'Time: {time.time() - self.start_time:.1f}\n')
 
     def set_engine_state(self, idx, engine, reward, cleared_lines):
         self.engine_states[idx]['garbage_lines'] = engine.garbage_lines
