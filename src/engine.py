@@ -167,9 +167,9 @@ class TetrisEngine:
         # Drop each 3 step
         done = False
         cleared_lines = 0
-        if self.drop_count == self.step_num_to_drop or action == "soft_drop":
+        if self.drop_count == self.step_num_to_drop or action == "hard_drop":
             self.drop_count = 0
-            if action != "hard_drop":
+            if action != "soft_drop":
                 self.shape, self.anchor = soft_drop(self.shape, self.anchor, self.board)
             if self._has_dropped():
                 cleared_lines, reward, done = self._handle_dropped(reward)
@@ -190,6 +190,7 @@ class TetrisEngine:
         reward += cleared_lines * 10
         self.score += cleared_lines
         self.total_cleared_lines += cleared_lines
+        # Dead
         if np.any(self.board[:, 0]):
             self.clear()
             self.n_deaths += 1
