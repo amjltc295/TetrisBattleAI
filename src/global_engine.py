@@ -24,7 +24,7 @@ def parse_args():
 class GlobalEngine:
     def __init__(
         self, width, height, player_num, use_gui, block_size,
-        game_time=120, KO_num_to_win=2
+        game_time=120, KO_num_to_win=5
     ):
         self.width = width
         self.height = height
@@ -157,9 +157,9 @@ class GlobalEngine:
             game_over = self.update_engines()
 
         self.compare_score()
-        curses.endwin()
         logger.info(f"Winner: {self.winner}")
         logger.info(f"States: {self.engine_states}")
+        curses.endwin()
 
         return self.dbs
 
