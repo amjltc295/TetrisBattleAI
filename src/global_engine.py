@@ -4,6 +4,7 @@ import time
 
 from engine import TetrisEngine
 from gui.gui import GUI
+import fixed_policy_agent
 
 
 def parse_args():
@@ -38,7 +39,12 @@ class GlobalEngine:
         self.pause = False
 
         self.engines = {}
+        self.players = {}
         for i in range(player_num):
+            if i == 0:
+                self.players[i] = 'keyboard'
+            else:
+                self.players[i] = 'fixed_policy_agent'
             self.engines[i] = TetrisEngine(width, height)
             self.engines[i].clear()
 
@@ -52,6 +58,7 @@ class GlobalEngine:
             self.gui = gui
         else:
             self.stdscr = curses.initscr()
+            curses.noecho()
 
         # Store play information
         self.dbs = {}
@@ -113,7 +120,23 @@ class GlobalEngine:
                 self.winner = idx
                 max_score = score
 
-    def get_action(self, step_to_final):
+    def get_action(self, engine_idx, step_to_final):
+        playert_type = self.players[engine_idx]
+        if playert_type == 'keyboard':
+            return self.get_action_from_keyboard(step_to_final)
+        elif playert_type == 'fixed_policy_agent':
+            return self.get_action_from_fixed_policy_agent(step_to_final, self.engines[engine_idx])
+        else:
+            raise NotImplementedError(f"Player type {playert_type} not exists")
+
+    def get_action_from_fixed_policy_agent(self, step_to_final, engine):
+        assert step_to_final
+        action, placement = fixed_policy_agent.select_action(
+            engine, engine.shape, engine.anchor, engine.board
+        )
+        return action
+
+    def get_action_from_keyboard(self, step_to_final):
         if self.use_gui:
             key = self.gui.last_gui_input()
             """
@@ -127,7 +150,9 @@ class GlobalEngine:
         if step_to_final:
             move = chr(key)
             if move == '-':
+                key = self.stdscr.getch()
                 move += chr(key)
+            key = self.stdscr.getch()
             rotate = chr(key)
             action = f"move_{move}_right_rotate_{rotate}"
         else:
@@ -140,11 +165,16 @@ class GlobalEngine:
 
         game_over = False
         while time.time() - self.start_time < self.game_time and not game_over:
-            action = self.get_action(step_to_final)
-
             if not self.use_gui:
                 self.stdscr.clear()
+                for idx, engine in self.engines.items():
+                    self.stdscr.addstr(str(engine))
+                    self.stdscr.addstr(f'reward: {self.engine_states[idx]}\n')
+                self.stdscr.addstr(f'Time: {time.time() - self.start_time:.1f}\n')
+
             for idx, engine in self.engines.items():
+                action = self.get_action(idx, step_to_final)
+
                 # Game step
                 if step_to_final:
                     state, reward, self.done, cleared_lines = engine.step_to_final(action)
@@ -156,17 +186,10 @@ class GlobalEngine:
                 self.sent_lines(idx, cleared_lines)
                 self.dbs[idx].append((state, reward, self.done, action))
 
-                # Render
-                if not self.use_gui:
-                    self.stdscr.addstr(str(engine))
-                    self.stdscr.addstr(f'reward: {self.engine_states[idx]}\n')
-
                 if self.engine_states[idx]['KO'] >= self.KO_num_to_win:
                     game_over = True
             if self.use_gui:
                 self.gui.update_screen()
-            else:
-                self.stdscr.addstr(f'Time: {time.time() - self.start_time:.1f}\n')
         self.compare_score()
         print(f"Winner: {self.winner} States: {self.engine_states}")
 
