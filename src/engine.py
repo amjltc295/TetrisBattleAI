@@ -77,14 +77,14 @@ class TetrisEngine:
 
         # actions are triggered by letters
         self.value_action_map = {
-            0: left,
-            1: right,
-            2: hard_drop,
-            3: soft_drop,
-            4: rotate_left,
-            5: rotate_right,
-            6: idle,
-            7: self.hold,
+            "move_left": left,
+            "move_right": right,
+            "hard_drop": hard_drop,
+            "soft_drop": soft_drop,
+            "rotate_left": rotate_left,
+            "rotate_right": rotate_right,
+            "idle": idle,
+            "hold": self.hold,
         }
         self.action_value_map = dict([(j, i) for i, j in self.value_action_map.items()])
         self.nb_actions = len(self.value_action_map)
@@ -151,7 +151,7 @@ class TetrisEngine:
         valid_action_sum = 0
 
         for value, fn in self.value_action_map.items():
-            if value == 7:
+            if value == "hold":
                 continue
             # If they're equal, it is not a valid action
             if fn(self.shape, self.anchor, self.board) != (self.shape, self.anchor):
@@ -167,9 +167,9 @@ class TetrisEngine:
         # Drop each 3 step
         done = False
         cleared_lines = 0
-        if self.drop_count == self.step_num_to_drop or action == 2:
+        if self.drop_count == self.step_num_to_drop or action == "soft_drop":
             self.drop_count = 0
-            if action != 3:
+            if action != "hard_drop":
                 self.shape, self.anchor = soft_drop(self.shape, self.anchor, self.board)
             if self._has_dropped():
                 cleared_lines, reward, done = self._handle_dropped(reward)
@@ -295,7 +295,7 @@ class TetrisEngine:
             self.hold_shape_name = tmp_shape_name
 
         # Prevent collision after hold
-        actions = [0, 1, 4, 5]
+        actions = ["move_left", "move_right"]
         count = -1
         while is_occupied(self.shape, self.anchor, board):
             count += 1
@@ -314,19 +314,19 @@ class TetrisEngine:
                 actions = []
                 final_shape, final_anchor, final_board = shape, anchor, deepcopy(board)
                 for i in range(rotate):
-                    actions.append(5)
-                    final_shape, final_anchor = rotate_right(final_shape, final_anchor, board)
+                    actions.append("rotate_right")  # right_rotate
                 if move > 0:
                     for i in range(move):
-                        actions.append(1)
-                        final_shape, final_anchor = right(final_shape, final_anchor, board)
+                        actions.append("move_right")  # right
                 else:
                     for i in range(-move):
-                        actions.append(0)
-                        final_shape, final_anchor = left(final_shape, final_anchor, board)
+                        actions.append("move_left")  # left
 
-                actions.append(2)
-                final_shape, final_anchor = hard_drop(final_shape, final_anchor, board)
+                actions.append("hard_drop")  # hard_drop
+                for action in actions:
+                    final_shape, final_anchor = self.value_action_map[action](
+                        final_shape, final_anchor, board
+                    )
                 final_board = self.set_piece(final_shape, final_anchor, board, True)
                 action_name = f"move_{move}_right_rotate_{rotate}"
                 action_state_dict[action_name] = (final_shape, final_anchor, final_board, actions)
