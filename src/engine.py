@@ -96,6 +96,7 @@ class TetrisEngine:
         self.shape = None
         self.shape_name = None
         self.n_deaths = 0
+        self.game_over = False
 
         # used for generating shapes
         self._shape_counts = [0] * len(shapes)
@@ -128,9 +129,11 @@ class TetrisEngine:
                 return shape_names[i], shapes[shape_names[i]]
 
     def _new_piece(self):
-        # Place randomly on x-axis with 2 tiles padding
-        self.anchor = (self.width // 2, 1)
         self.shape_name, self.shape = self.next_shape_name, self.next_shape
+        self.anchor = (self.width // 2, 1)
+        while is_occupied(self.shape, (self.anchor[0], self.anchor[1]), self.board):
+            self.anchor = (self.anchor[0], self.anchor[1] - 1)
+
         self.next_shape_name, self.next_shape = self._choose_shape()
 
     def _has_dropped(self):
@@ -164,15 +167,16 @@ class TetrisEngine:
 
         reward = self.valid_action_count()
 
-        # Drop each 3 step
-        done = False
+        # Drop each step_num_to_drop step
         cleared_lines = 0
         if self.drop_count == self.step_num_to_drop or action == "hard_drop":
             self.drop_count = 0
             if action != "soft_drop":
                 self.shape, self.anchor = soft_drop(self.shape, self.anchor, self.board)
             if self._has_dropped():
-                cleared_lines, reward, done = self._handle_dropped(reward)
+                cleared_lines, KOed = self._handle_dropped(reward)
+                reward += cleared_lines * 10
+                reward -= KOed * 10
 
         # Update time and reward
         self.time += 1
@@ -182,25 +186,25 @@ class TetrisEngine:
         state = np.copy(self.board)
         self.board = self.set_piece(self.shape, self.anchor, self.board, False)
         self._update_states()
-        return state, reward, done, cleared_lines
+        return state, reward, self.game_over, cleared_lines
 
-    def _handle_dropped(self, reward, done=False):
+    def _handle_dropped(self, done=False):
         self.board = self.set_piece(self.shape, self.anchor, self.board, True)
         cleared_lines, self.board = self.clear_lines(self.board)
-        reward += cleared_lines * 10
         self.score += cleared_lines
         self.total_cleared_lines += cleared_lines
-        # Dead
-        if np.any(self.board[:, 0]):
+        KOed = False
+        if (np.any(self.board[:, 0])):
+            self.board = self.set_piece(self.shape, self.anchor, self.board, True)
+            if self.garbage_lines == 0:
+                self.game_over = True
             self.clear()
             self.n_deaths += 1
-            if self.garbage_lines == 0:
-                done = True
-            reward = -10
+            KOed = True
         else:
             self._new_piece()
             self.hold_locked = False
-        return cleared_lines, reward, done
+        return cleared_lines, KOed
 
     def step_to_final(self, action):
         reward = 0
@@ -272,6 +276,7 @@ class TetrisEngine:
             new_board[:, -self.garbage_lines:] = -1
         for i in range(self.height - self.previous_garbage_lines - 1, -1, -1):
             new_board[:, i - (self.garbage_lines - self.previous_garbage_lines)] = self.board[:, i]
+
         while is_occupied(self.shape, self.anchor, new_board):
             self.anchor = (self.anchor[0], self.anchor[1] - 1)
 
