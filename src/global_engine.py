@@ -7,6 +7,7 @@ import sys
 from engine import TetrisEngine
 from gui.gui import GUI
 import fixed_policy_agent
+from logging_config import logger
 
 
 def parse_args():
@@ -193,7 +194,9 @@ class GlobalEngine:
             if self.use_gui:
                 self.gui.update_screen()
         self.compare_score()
-        print(f"Winner: {self.winner} States: {self.engine_states}")
+        curses.endwin()
+        logger.info(f"Winner: {self.winner}")
+        logger.info(f"States: {self.engine_states}")
 
         return self.dbs
 
@@ -219,4 +222,8 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
     args = parse_args()
     global_engine = GlobalEngine(args.width, args.height, args.player_num, args.use_gui, args.block_size)
-    dbs = global_engine.play_game(args.step_to_final)
+    try:
+        dbs = global_engine.play_game(args.step_to_final)
+    except Exception as err:
+        curses.endwin()
+        logger.error(err, exc_info=True)
