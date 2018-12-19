@@ -306,8 +306,8 @@ class TetrisEngine:
     def get_valid_final_states(self, shape, anchor, board):
         # Reference https://github.com/brendanberg01/TetrisAI/blob/master/ai.py
         action_state_dict = {}
-        for move in range(-self.width // 2, self.width // 2):
-            for rotate in range(0, 3):
+        for move in range(-self.width // 2, self.width // 2 + 1):
+            for rotate in range(0, 4):
                 final_shape, final_anchor, final_board = shape, anchor, deepcopy(board)
                 for i in range(rotate):
                     final_shape, final_anchor = rotate_right(final_shape, final_anchor, board)
