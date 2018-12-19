@@ -1,6 +1,8 @@
 import argparse
 import curses
 import time
+import signal
+import sys
 
 from engine import TetrisEngine
 from gui.gui import GUI
@@ -207,7 +209,14 @@ class GlobalEngine:
         self.engine_states[idx]['lines_sent'] += cleared_lines
 
 
+def signal_handler(sig, frame):
+    print('Get <ctrl+c>; system exited')
+    curses.endwin()
+    sys.exit(0)
+
+
 if __name__ == '__main__':
+    signal.signal(signal.SIGINT, signal_handler)
     args = parse_args()
     global_engine = GlobalEngine(args.width, args.height, args.player_num, args.use_gui, args.block_size)
     dbs = global_engine.play_game(args.step_to_final)
