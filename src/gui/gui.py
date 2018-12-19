@@ -1,10 +1,15 @@
 # Based on:
 # PYTRIS™ Copyright (c) 2017 Jason Kim All Rights Reserved.
 
+import sys
+import os
+
 import pygame
+
 from gui.mino import Tetrimino
 
 running_gui = None
+DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
 pygame.init()
 
@@ -14,9 +19,9 @@ class UIVariables:
     shape_names = ['T', 'J', 'L', 'Z', 'S', 'I', 'O']
 
     # Fonts
-    font_path = "gui/fonts/OpenSans-Light.ttf"
-    font_path_b = "gui/fonts/OpenSans-Bold.ttf"
-    font_path_i = "gui/fonts/Inconsolata/Inconsolata.otf"
+    font_path = os.path.join(DIR_PATH, "fonts/OpenSans-Light.ttf")
+    font_path_b = os.path.join(DIR_PATH, "fonts/OpenSans-Bold.ttf")
+    font_path_i = os.path.join(DIR_PATH, "fonts/Inconsolata/Inconsolata.otf")
 
     h1 = pygame.font.Font(font_path, 50)
     h2 = pygame.font.Font(font_path, 30)
