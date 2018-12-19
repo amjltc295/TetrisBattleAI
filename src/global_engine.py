@@ -17,8 +17,6 @@ def parse_args():
     parser.add_argument('-n', '--player_num', type=int, default=2, help='Number of players')
     parser.add_argument('-b', '--block_size', type=int, default=30, help='Set block size to enlarge GUI')
     parser.add_argument('-g', '--use_gui', type=int, default=0, help='Active output to gui')
-    parser.add_argument('-f', '--step_to_final', default=False, action='store_true',
-                        help='One step to the final location')
     args = parser.parse_args()
     return args
 
@@ -26,7 +24,7 @@ def parse_args():
 class GlobalEngine:
     def __init__(
         self, width, height, player_num, use_gui, block_size,
-        game_time=120, KO_num_to_win=2, enable_step_to_final=False
+        game_time=120, KO_num_to_win=2
     ):
         self.width = width
         self.height = height
@@ -41,8 +39,15 @@ class GlobalEngine:
         self.use_gui = use_gui
         self.pause = False
 
-        self.enable_step_to_final = enable_step_to_final
-
+        self.key_action_map = {
+            ord('a'): 0,  # Shift left
+            ord('d'): 1,  # Shift right
+            ord('w'): 2,  # Hard drop
+            ord('s'): 3,  # Soft drop
+            ord('q'): 4,  # Rotate left
+            ord('e'): 5,  # Rotate right
+            ord('f'): 7   # Hold
+        }
         self.engines = {}
         self.players = {}
         for i in range(player_num):
@@ -50,7 +55,6 @@ class GlobalEngine:
                 self.players[i] = 'keyboard'
             else:
                 self.players[i] = 'fixed_policy_agent'
-                self.players[i] = 'keyboard'
             self.engines[i] = TetrisEngine(width, height)
             self.engines[i].clear()
 
@@ -84,15 +88,6 @@ class GlobalEngine:
                 "hold_locked": False,
                 "garbage_lines": 0,
                 "highest_line": 0
-            }
-            self.key_action_map = {
-                ord('a'): 0,  # Shift left
-                ord('d'): 1,  # Shift right
-                ord('w'): 2,  # Hard drop
-                ord('s'): 3,  # Soft drop
-                ord('q'): 4,  # Rotate left
-                ord('e'): 5,  # Rotate right
-                ord('f'): 7   # Hold
             }
             # Initialize dbs
             self.dbs[i] = []
@@ -136,8 +131,7 @@ class GlobalEngine:
             raise NotImplementedError(f"Player type {playert_type} not exists")
 
     def get_action_from_fixed_policy_agent(self, engine):
-        assert self.enable_step_to_final
-        action, placement = fixed_policy_agent.select_action(
+        action = fixed_policy_agent.agent.get_action(
             engine, engine.shape, engine.anchor, engine.board
         )
         return action
@@ -150,16 +144,7 @@ class GlobalEngine:
                 key = self.stdscr.getch()
             return key
         key = get_key()
-        if self.enable_step_to_final:
-            move = chr(key)
-            if move == '-':
-                key = get_key()
-                move += chr(key)
-            key = get_key()
-            rotate = chr(key)
-            action = f"move_{move}_right_rotate_{rotate}"
-        else:
-            action = self.keyboard_control(key)
+        action = self.keyboard_control(key)
         return action
 
     def play_game(self):
@@ -184,10 +169,7 @@ class GlobalEngine:
             action = self.get_action(idx)
 
             # Game step
-            if self.enable_step_to_final:
-                state, reward, self.done, cleared_lines = engine.step_to_final(action)
-            else:
-                state, reward, self.done, cleared_lines = engine.step(action)
+            state, reward, self.done, cleared_lines = engine.step(action)
 
             # Update state
             self.set_engine_state(idx, engine, reward, cleared_lines)
@@ -231,7 +213,7 @@ if __name__ == '__main__':
     args = parse_args()
     global_engine = GlobalEngine(
         args.width, args.height, args.player_num, args.use_gui, args.block_size,
-        enable_step_to_final=args.step_to_final)
+    )
     try:
         dbs = global_engine.play_game()
     except Exception as err:
