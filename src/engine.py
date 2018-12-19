@@ -32,12 +32,12 @@ def is_occupied(shape, anchor, board):
     return False
 
 
-def left(shape, anchor, board):
+def move_left(shape, anchor, board):
     new_anchor = (anchor[0] - 1, anchor[1])
     return (shape, anchor) if is_occupied(shape, new_anchor, board) else (shape, new_anchor)
 
 
-def right(shape, anchor, board):
+def move_right(shape, anchor, board):
     new_anchor = (anchor[0] + 1, anchor[1])
     return (shape, anchor) if is_occupied(shape, new_anchor, board) else (shape, new_anchor)
 
@@ -77,8 +77,8 @@ class TetrisEngine:
 
         # actions are triggered by letters
         self.value_action_map = {
-            "move_left": left,
-            "move_right": right,
+            "move_left": move_left,
+            "move_right": move_right,
             "hard_drop": hard_drop,
             "soft_drop": soft_drop,
             "rotate_left": rotate_left,
@@ -131,7 +131,7 @@ class TetrisEngine:
     def _new_piece(self):
         self.shape_name, self.shape = self.next_shape_name, self.next_shape
         self.anchor = (self.width // 2, 1)
-        while is_occupied(self.shape, (self.anchor[0], self.anchor[1]), self.board):
+        while is_occupied(self.shape, self.anchor, self.board):
             self.anchor = (self.anchor[0], self.anchor[1] - 1)
 
         self.next_shape_name, self.next_shape = self._choose_shape()
@@ -182,9 +182,7 @@ class TetrisEngine:
         self.time += 1
         self.drop_count += 1
 
-        self.board = self.set_piece(self.shape, self.anchor, self.board, True)
-        state = np.copy(self.board)
-        self.board = self.set_piece(self.shape, self.anchor, self.board, False)
+        state = self.get_board()
         self._update_states()
         return state, reward, self.game_over, cleared_lines
 
@@ -194,7 +192,7 @@ class TetrisEngine:
         self.score += cleared_lines
         self.total_cleared_lines += cleared_lines
         KOed = False
-        if (np.any(self.board[:, 0])):
+        if np.any(self.board[:, 0]):
             self.board = self.set_piece(self.shape, self.anchor, self.board, True)
             if self.garbage_lines == 0:
                 self.game_over = True
@@ -277,8 +275,28 @@ class TetrisEngine:
         for i in range(self.height - self.previous_garbage_lines - 1, -1, -1):
             new_board[:, i - (self.garbage_lines - self.previous_garbage_lines)] = self.board[:, i]
 
+        # Check if additional garbage_lines squeeze the floating block
+        # If so, force it to drop
+        squeezed = 0
         while is_occupied(self.shape, self.anchor, new_board):
             self.anchor = (self.anchor[0], self.anchor[1] - 1)
+            squeezed += 1
+        if squeezed > 1:
+            self.shape, self.anchor = hard_drop(self.shape, self.anchor, new_board)
+            new_board = self.set_piece(self.shape, self.anchor, new_board, True)
+
+        # Check additional garbage_lines cause KO
+        if np.any(new_board[:, 0]):
+            if self.garbage_lines == 0:
+                self.game_over = True
+            new_board = np.zeros_like(self.board)
+            for i in range(self.height - self.previous_garbage_lines - 1, -1, -1):
+                new_board[:, i + self.previous_garbage_lines] = self.board[:, i]
+            new_board = self.set_piece(self.shape, self.anchor, new_board, False)
+            self.shape, self.anchor = hard_drop(self.shape, self.anchor, new_board)
+            new_board = self.set_piece(self.shape, self.anchor, new_board, True)
+            self.clear()
+            self.n_deaths += 1
 
         self.previous_garbage_lines = self.garbage_lines
         self.board = new_board
@@ -310,6 +328,7 @@ class TetrisEngine:
                 self.shape, self.anchor = self.value_action_map[action](self.shape, self.anchor, board)
             except Exception:
                 self.anchor = (self.anchor[0], self.anchor[1] - 1)
+                count = -1
         return self.shape, self.anchor
 
     def get_valid_final_states(self, shape, anchor, board):
@@ -339,7 +358,6 @@ class TetrisEngine:
         return action_state_dict
 
     def get_board(self):
-        self.board = self.set_piece(self.shape, self.anchor, self.board, True)
-        state = np.copy(self.board)
-        self.board = self.set_piece(self.shape, self.anchor, self.board, False)
-        return state
+        board = deepcopy(self.board)
+        board = self.set_piece(self.shape, self.anchor, self.board, True)
+        return board
