@@ -1,7 +1,6 @@
 # Based on:
 # PYTRIS™ Copyright (c) 2017 Jason Kim All Rights Reserved.
 
-import sys
 import os
 
 import pygame
