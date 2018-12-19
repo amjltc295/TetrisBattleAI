@@ -40,13 +40,13 @@ class GlobalEngine:
         self.pause = False
 
         self.key_action_map = {
-            ord('a'): 0,  # Shift left
-            ord('d'): 1,  # Shift right
-            ord('w'): 2,  # Hard drop
-            ord('s'): 3,  # Soft drop
-            ord('q'): 4,  # Rotate left
-            ord('e'): 5,  # Rotate right
-            ord('f'): 7   # Hold
+            ord('a'): "move_left",  # Shift left
+            ord('d'): "move_right",  # Shift right
+            ord('w'): "hard_drop",  # Hard drop
+            ord('s'): "soft_drop",  # Soft drop
+            ord('q'): "rotate_left",  # Rotate left
+            ord('e'): "rotate_right",  # Rotate right
+            ord('f'): "hold"   # Hold
         }
         self.engines = {}
         self.players = {}
@@ -98,7 +98,7 @@ class GlobalEngine:
         if key in self.key_action_map:
             action = self.key_action_map[key]
         else:
-            action = 6
+            action = 'idle'
         return action
 
     def sent_lines(self, idx, cleared_lines):
