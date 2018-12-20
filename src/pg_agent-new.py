@@ -36,38 +36,55 @@ class PG(nn.Module):
 
     def __init__(self):
         super(PG, self).__init__()
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=5, stride=1)
-        self.bn1 = nn.BatchNorm2d(32)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=2)
-        self.bn2 = nn.BatchNorm2d(64)
-        self.lin1 = nn.Linear(896, 256)
-#         self.lin1 = nn.Linear(448, 256)
-        self.head = nn.Linear(256 * 2, 1)
-
+        self.cnn = CNN_lay()
+        
+        # self.bn3 = nn.BatchNorm2d(32)
+        # self.rnn = nn.LSTM(448, 240)
+        self.lin1 = nn.Linear(640, 64)
+        self.Q_lin = nn.Linear(2*64, 1)
+        
     def forward(self, x, placement):
-        batch, ch, w, h = x.size()
+        batch,_,_,_ = x.shape
+        x = self.cnn(x)
+        x = x.view(batch, -1)
+        placement = self.cnn(placement)
+        placement = placement.view(batch, -1)
+        
+        x = F.relu(self.lin1(x))
+        placement = F.relu(self.lin1(placement))
+        
+        Q = self.Q_lin(torch.cat([x, placement], dim=-1))
+        return Q
+
+class CNN_lay(nn.Module):
+
+    def __init__(self):
+        super(CNN_lay, self).__init__()
+        self.conv1 = nn.Conv2d(1, 16, kernel_size=5, stride=1, padding=2)
+        self.bn1 = nn.BatchNorm2d(16)
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(32)
+        
+        self.conv_collapse = nn.Conv2d(32, 64, kernel_size=(1,20), stride=1)
+        self.bn4 = nn.BatchNorm2d(64)
+        
+        self.conv5 = nn.Conv2d(64, 64, kernel_size=(3,1), stride=1, padding=(1,0))
+        self.bn5 = nn.BatchNorm2d(64)
+    def forward(self, x):
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
-#         print(x.shape)
-        x = F.relu(self.lin1(x.view(batch, -1)))
-        
-        p = placement
-        batch, ch, w, h = p.size()
-        p = F.relu(self.bn1(self.conv1(p)))
-        p = F.relu(self.bn2(self.conv2(p)))
-        p = F.relu(self.lin1(p.view(batch, -1)))
-        
-        return self.head(torch.cat([x,p], dim=-1))
+        x = F.relu(self.bn4(self.conv_collapse(x)))
+        x = F.relu(self.bn5(self.conv5(x)))
+        return x
     
     
 
 GAMMA = 0.9
-CHECKPOINT_FILE = 'pg.pth.tar'
 
 
 
 
-model = PG()
+model = AC()
 print(model)
 
 if use_cuda:
@@ -82,29 +99,15 @@ def entropy(act_prob):
     entropy = torch.sum(-torch.log(act_prob + eps) * act_prob)
     return entropy
 
-def discount_rewards(rewards):
-    rewards = np.array(rewards, dtype=np.float)
-    discounted_rewards = np.zeros_like(rewards)
-    running_add = 0
-    for t in reversed(range(0, len(rewards))):
-        if rewards[t] != 0:
-            running_add = 0
-        running_add = running_add * GAMMA + rewards[t]
-        discounted_rewards[t] = running_add
-    rewards = discounted_rewards
-#     rewards = (rewards - rewards.mean()) / (rewards.std())
-    return rewards
-
-
 
 def get_action_probability(model, state, act_pairs):
     
     placements = torch.cat([ FloatTensor(v)[None, None,:,:] for k, v in act_pairs ], dim=0)
     states = FloatTensor(state)[None, None,:,:].repeat(len(act_pairs), 1, 1, 1)
-    act_score = model(states, placements).flatten()
-    assert act_score.shape == (len(act_pairs),)
-    act_prob = F.softmax(act_score, dim=0)
-    return act_prob
+    Q, V = model(states, placements).flatten()
+    assert Q.shape == (len(act_pairs),)
+    act_prob = F.softmax(Q, dim=0)
+    return act_prob, V
 
 
 
@@ -142,7 +145,7 @@ if __name__ == '__main__':
 
     ######################################################################
     checkpoint = torch.load('./pg_best.pth.tar')
-    model.load_state_dict(checkpoint['state_dict'])
+#     model.load_state_dict(checkpoint['state_dict'])
     r_q = deque(maxlen = 1000)
     for i in range(100):
         r_q.append(-90)
@@ -160,7 +163,7 @@ if __name__ == '__main__':
             action_final_location_map = engine.get_valid_final_states(engine.shape, engine.anchor, engine.board)
             act_pairs = [ (k, v[2]) for k,v in action_final_location_map.items()]
 
-            act_prob = get_action_probability(model, state, act_pairs)
+            act_prob, V = get_action_probability(model, state, act_pairs)
             act_idx = int(np.random.choice(len(act_prob), 1, p=act_prob.cpu().detach().numpy()))
             act_prob_list.append(act_prob[act_idx].unsqueeze(0))
             entropy_loss += -entropy(act_prob)
@@ -190,7 +193,7 @@ if __name__ == '__main__':
                     param.grad.data.clamp_(-1, 1)
                 optimizer.step()
 #                 r_q.append(R)
-                log = 'epoch {0} score {1} rewards {2} baseline {3}'.format(i_episode, '%.2f' % score, '%.2f' % R, '%.2f' % baseline)
+                log = 'epoch {0} score {1} rewards {2} '.format(i_episode, '%.2f' % score, '%.2f' % R)
                 f.write(log + '\n')
                 # Train model
                 if i_episode % 10 == 0:
@@ -206,7 +209,7 @@ if __name__ == '__main__':
                         'state_dict' : model.state_dict(),
                         'best_score' : best_score,
                         'optimizer' : optimizer.state_dict(),
-                        }, is_best, filename='pg.pth.tar', best_name='pg_best.pth.tar')
+                        }, is_best, filename='ac.pth.tar', best_name='ac_best.pth.tar')
                     best_score = score
                 break
     

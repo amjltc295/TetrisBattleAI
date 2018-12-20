@@ -22,7 +22,7 @@ from collections import deque
 # width, height = 10, 20  # standard tetris friends rules
 width, height = 10, 20  # standard tetris friends rules
 engine = TetrisEngine(width, height)
-
+action_n = 30
 
 # if gpu is to be used
 use_cuda = torch.cuda.is_available()
@@ -45,7 +45,7 @@ ByteTensor = torch.cuda.ByteTensor if use_cuda else torch.ByteTensor
 #
 
 Transition = namedtuple('Transition',
-                        ('state', 'placement', 'next_state', 'next_shape', 'next_anchor', 'next_board', 'reward'))
+                        ('state', 'next_state', 'action', 'reward'))
 
 
 class ReplayMemory(object):
@@ -120,19 +120,16 @@ class DQN(nn.Module):
         # self.bn3 = nn.BatchNorm2d(32)
         # self.rnn = nn.LSTM(448, 240)
         self.lin1 = nn.Linear(640, 64)
-        self.Q_lin = nn.Linear(2*64, 1)
+        self.Q_lin = nn.Linear(64, action_n)
         
-    def forward(self, x, placement):
+    def forward(self, x):
         batch,_,_,_ = x.shape
         x = self.cnn(x)
         x = x.view(batch, -1)
-        placement = self.cnn(placement)
-        placement = placement.view(batch, -1)
         
         x = F.relu(self.lin1(x))
-        placement = F.relu(self.lin1(placement))
         
-        Q = self.Q_lin(torch.cat([x, placement], dim=-1))
+        Q = self.Q_lin(x)
         return Q
 
 class CNN_lay(nn.Module):
@@ -185,7 +182,6 @@ EPS_DECAY = 30000
 # EPS_START = 0.9
 # EPS_END = 0.05
 # EPS_DECAY = 200
-CHECKPOINT_FILE = 'checkpoint.pth.tar'
 
 
 
@@ -211,14 +207,10 @@ def get_max_Q(model, state, engine, shape, anchor, board):
     action_final_location_map = engine.get_valid_final_states(shape, anchor, board)
     act_pairs = [ (k,v[2]) for k,v in action_final_location_map.items()]
     with torch.no_grad():
-        states = FloatTensor(state)[None, None,:,:].repeat(len(act_pairs), 1, 1, 1)
-        placements = [] 
-        for k, v in act_pairs:
-            placements.append(FloatTensor(v)[None, None,:,:])
-        placements = torch.cat(placements, dim=0)
-        Q = model(states, placements).flatten()
-        assert Q.shape == (len(act_pairs),)
-        topv, topi = torch.topk(Q, k=1)
+        states = FloatTensor(state)[None, None,:,:]
+        Q = model(states)
+        assert Q.shape[1] == len(act_pairs)
+        topv, topi = torch.topk(Q, dim=1, k=1)
         act, placement = act_pairs[topi.item()]
     return act, placement, topv.item()
 
@@ -255,32 +247,22 @@ def optimize_model():
         return
     transitions = memory.sample(BATCH_SIZE)
     batch = Transition(*zip(*transitions))
+    non_final_mask = ByteTensor(tuple(map(lambda s: s is not None,
+                                          batch.next_state)))
+    non_final_next_states = torch.cat([FloatTensor(s)[None, None,:,:] for s in batch.next_state
+                                                if s is not None], dim=0)
+    state_batch = torch.cat([FloatTensor(s)[None, None,:,:] for s in batch.state], dim=0)
+    action_batch = LongTensor(batch.action).unsqueeze(1)
+    reward_batch = FloatTensor(batch.reward).unsqueeze(1)
+    Q = torch.gather(model(state_batch), 1, action_batch)
 
-    # Compute a mask of non-final states and concatenate the batch elements
-    next_max_Q = []
-    for state, shape, anchor, board in zip(batch.next_state, batch.next_shape, batch.next_anchor, batch.next_board):
-        if shape is None:
-            next_max_Q.append(0)
-        else:
-            act, placement, Q = get_max_Q(cached_model, state, engine, shape, anchor, board) 
-            next_max_Q.append(Q)
-    next_max_Q = FloatTensor(next_max_Q)
-    
-    reward_batch = FloatTensor(batch.reward)
-
-
-    # Compute the expected Q values
-    state_batch = torch.cat([FloatTensor(s)[None, None,:,:] for s in batch.state])
-    placement_batch = torch.cat([FloatTensor(s)[None, None,:,:] for s in batch.placement])
-    
-    state_values = model(state_batch, placement_batch).flatten()
-    
     # Compute V(s_{t+1}) for all next states.
-    
-    # Compute the expected Q values
-    expected_state_values = (next_max_Q * GAMMA) + reward_batch
-    # Compute Huber loss
-    loss = F.smooth_l1_loss(state_values, expected_state_values)
+    next_Q = torch.zeros_like(Q)
+    with torch.no_grad():
+        next_Q[non_final_mask],_ = torch.topk(model(non_final_next_states), dim=1, k=1)
+    target = (next_Q * GAMMA) + reward_batch
+
+    loss = F.smooth_l1_loss(target, Q)
 
 #     loss = loss_criterion(state_action_values.squeeze(1), expected_state_action_values)
 
@@ -337,7 +319,7 @@ if __name__ == '__main__':
     # 1), and optimize our model once. When the episode ends (our model
     # fails), we restart the loop.
     
-    f = open('log.out', 'w+')
+    f = open('Q_log.out', 'w+')
     score_q = deque(maxlen = 100)
     for i_episode in count(start_epoch):
         # Initialize the environment and state
@@ -349,19 +331,18 @@ if __name__ == '__main__':
         model.eval()
         for t in count():
             # Select and perform an action
-    
+            action_final_location_map = engine.get_valid_final_states(engine.shape, engine.anchor, engine.board)
             action, placement = select_action(model, state, engine, engine.shape, engine.anchor, engine.board)
+            act_idx = list(action_final_location_map.keys()).index(action)
             # Observations
             last_state = state
             
             state, reward, done, cleared_lines = engine.step_to_final(action)
             
             if done:
-                data = (last_state, placement, state, None, None,
-                    None, reward)
+                data = (last_state, None, act_idx, reward)
             else:
-                data = (last_state, placement, state, deepcopy(engine.shape), deepcopy(engine.anchor),
-                    deepcopy(engine.board), reward)
+                data = (last_state, state, act_idx, reward)
             
             memory.push(*data)
             # Accumulate reward
@@ -395,7 +376,7 @@ if __name__ == '__main__':
                         'best_score' : best_score,
                         'optimizer' : optimizer.state_dict(),
 #                         'memory' : memory
-                        }, is_best, filename='checkpoint.pth.tar', best_name='model_best.pth.tar')
+                        }, is_best, filename='Q.pth.tar', best_name='Q_best.pth.tar')
                     best_score = score
 #                 copy cached model
                 if i_episode % 50 == 0 and  i_episode > 0:
