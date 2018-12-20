@@ -186,7 +186,7 @@ class TetrisEngine:
         self._update_states()
         return state, reward, self.game_over, cleared_lines
 
-    def _handle_dropped(self, done=False):
+    def _handle_dropped(self):
         self.board = self.set_piece(self.shape, self.anchor, self.board, True)
         cleared_lines, self.board = self.clear_lines(self.board)
         self.score += cleared_lines
