@@ -1,4 +1,5 @@
 import random
+from engine import TetrisEngine
 
 genes = ['holes_stack_area', 'holes_clean_area', 'height_stack_area',
          'height_clean_area', 'blocked_lines', 'num_stack_area',
@@ -6,9 +7,11 @@ genes = ['holes_stack_area', 'holes_clean_area', 'height_stack_area',
 
 init_random_value = 10.0
 
+width, height = 10, 20  # standard tetris friends rules
+
 
 class DNA:
-    def __init__(self, mutation_rate):
+    def __init__(self, mutation_rate, engine):
         self.dict_genes = dict()
         self.dict_genes['holes_stack_area'] = random.uniform(0.0, init_random_value)
         self.dict_genes['holes_clean_area'] = random.uniform(0.0, init_random_value)
@@ -19,6 +22,7 @@ class DNA:
         self.dict_genes['enemy_blocked_lines'] = random.uniform(0.0, init_random_value)
 
         self.mutation_rate = mutation_rate
+        self.engine = engine
         self.fitness = 0.0
         self.prob = 0.0
 
@@ -31,7 +35,7 @@ class DNA:
         self.fitness = sum(self.dict_genes.values())
 
     def make_sexy_baby(self, parent2):
-        baby = DNA(self.mutation_rate)
+        baby = DNA(self.mutation_rate, self.engine)
         split_point = int(len(genes)/2)
 
         # Crossover
@@ -50,16 +54,17 @@ class DNA:
 
 
 class Population:
-    def __init__(self, population_size, mutation_rate):
+    def __init__(self, population_size, mutation_rate, engine):
         self.population = list()
         self.current_generation = 0
+        self.engine = engine
         self.population_size = population_size
         self.mutation_rate = mutation_rate
         self.best = None
         self.max_fitness = 0.0
 
         for i in range(population_size):
-            self.population.append(DNA(self.mutation_rate))
+            self.population.append(DNA(self.mutation_rate, self.engine))
 
     def calc_fitness_prob(self):
         total = 0
@@ -105,11 +110,12 @@ class Population:
 
 
 class GeneticAlgorithm:
-    def __init__(self, population_size, mutation_rate, num_generations):
+    def __init__(self, population_size, mutation_rate, num_generations, engine):
         self.population_size = population_size
         self.mutation_rate = mutation_rate
         self.num_generations = num_generations
-        self.population = Population(population_size, mutation_rate)
+        self.engine = engine
+        self.population = Population(population_size, mutation_rate, engine)
 
     def evolve_the_beasts(self):
         self.population.calc_fitness_prob()
@@ -123,5 +129,6 @@ class GeneticAlgorithm:
 
 
 if __name__ == '__main__':
-    darwin = GeneticAlgorithm(100, 0.01, 200)
+    engine = TetrisEngine(width, height)
+    darwin = GeneticAlgorithm(100, 0.01, 200, engine)
     darwin.evolve_the_beasts()
