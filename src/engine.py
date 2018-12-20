@@ -174,7 +174,7 @@ class TetrisEngine:
             if action != "soft_drop":
                 self.shape, self.anchor = soft_drop(self.shape, self.anchor, self.board)
             if self._has_dropped():
-                cleared_lines, KOed = self._handle_dropped(reward)
+                cleared_lines, KOed = self._handle_dropped()
                 reward += cleared_lines * 10
                 reward -= KOed * 10
 
@@ -211,7 +211,7 @@ class TetrisEngine:
         action_final_location_map = self.get_valid_final_states(
             self.shape, self.anchor, self.board)
         self.shape, self.anchor, self.board, actions = action_final_location_map[action]
-        cleared_lines, KOed = self._handle_dropped(reward)
+        cleared_lines, KOed = self._handle_dropped()
         reward += cleared_lines * 10
         reward -= KOed * 10
         self.board = self.set_piece(self.shape, self.anchor, self.board, True)
