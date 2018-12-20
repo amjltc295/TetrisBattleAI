@@ -3,5 +3,5 @@
 3 pg
 4 有clip Q learning 新model ddqn
 5 有clip ac
-
+6 simple ac
 2 沒有clip Q learning 新model ddqn train不起來
