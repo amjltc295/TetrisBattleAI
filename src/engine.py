@@ -7,8 +7,8 @@ shapes = {
     'T': [(0, 0), (-1, 0), (1, 0), (0, -1)],
     'J': [(0, 0), (-1, 0), (0, -1), (0, -2)],
     'L': [(0, 0), (1, 0), (0, -1), (0, -2)],
-    'Z': [(0, 0), (-1, 0), (0, -1), (1, -1)],
-    'S': [(0, 0), (-1, -1), (0, -1), (1, 0)],
+    'S': [(0, 0), (-1, 0), (0, -1), (1, -1)],
+    'Z': [(0, 0), (-1, -1), (0, -1), (1, 0)],
     'I': [(0, 0), (0, -1), (0, -2), (0, -3)],
     'O': [(0, 0), (0, -1), (-1, 0), (-1, -1)],
 }
@@ -70,7 +70,7 @@ def idle(shape, anchor, board):
 
 
 class TetrisEngine:
-    def __init__(self, width, height):
+    def __init__(self, width, height, enable_KO=True):
         self.width = width
         self.height = height
         self.board = np.zeros(shape=(width, height), dtype=np.float)
@@ -102,15 +102,17 @@ class TetrisEngine:
 
         # states
         self.total_cleared_lines = 0
-        self.previous_bomb_lines = 0
-        self.bomb_lines = 0
+        self.previous_garbage_lines = 0
+        self.garbage_lines = 0
         self.highest_line = 0
         self.drop_count = 0
-        self.step_num_to_drop = 3
-        self.holded = False
+        self.step_num_to_drop = 30
+        self.hold_locked = False
         self.hold_shape = []
         self.hold_shape_name = None
         self.next_shape_name, self.next_shape = self._choose_shape()
+
+        self.enable_KO = enable_KO  # clear only the garbage lines after dead
 
         # clear after initializing
         self.pre_board = None
@@ -192,12 +194,12 @@ class TetrisEngine:
         if np.any(self.board[:, 0]):
             self.clear()
             self.n_deaths += 1
-            if self.bomb_lines == 0:
+            if self.garbage_lines == 0:
                 done = True
             reward = -10
         else:
             self._new_piece()
-            self.holded = False
+            self.hold_locked = False
         return cleared_lines, reward, done
 
     def step_to_final(self, action):
@@ -226,9 +228,13 @@ class TetrisEngine:
         return state, reward, done, cleared_lines
 
     def clear(self):
+        if not self.enable_KO:
+            self.time = 0
+            self.score = 0
+            self.board = np.zeros_like(self.board)
         self._new_piece()
-        self.holded = False
-        self.bomb_lines = 0
+        self.hold_locked = False
+        self.garbage_lines = 0
         self.highest_line = 0
         self.board = np.zeros_like(self.board)
         self.pre_board = deepcopy(self.board)
@@ -263,8 +269,8 @@ class TetrisEngine:
         self.board = self.set_piece(self.shape, self.anchor, self.board, False)
         return s
 
-    def receive_bomb_lines(self, bomb_lines):
-        self.bomb_lines += bomb_lines
+    def receive_garbage_lines(self, garbage_lines):
+        self.garbage_lines += garbage_lines
 
     def is_alive(self):
         if self.highest_line >= self.height:
@@ -273,21 +279,21 @@ class TetrisEngine:
 
     def _update_states(self):
         new_board = np.zeros_like(self.board)
-        if self.bomb_lines > 0:
-            new_board[:, -self.bomb_lines:] = -1
-        for i in range(self.height - self.previous_bomb_lines - 1, -1, -1):
-            new_board[:, i - (self.bomb_lines - self.previous_bomb_lines)] = self.board[:, i]
-        self.previous_bomb_lines = self.bomb_lines
+        if self.garbage_lines > 0:
+            new_board[:, -self.garbage_lines:] = -1
+        for i in range(self.height - self.previous_garbage_lines - 1, -1, -1):
+            new_board[:, i - (self.garbage_lines - self.previous_garbage_lines)] = self.board[:, i]
+        self.previous_garbage_lines = self.garbage_lines
         self.board = new_board
         for i in range(self.height - 1, -1, -1):
             if sum(self.board[:, i]) > 0:
                 self.highest_line = self.height - i
 
     def hold(self, shape, anchor, board):
-        if self.holded:
+        if self.hold_locked:
             return (shape, anchor)
         else:
-            self.holded = True
+            self.hold_locked = True
             tmp_shape_name = self.shape_name
             if len(self.hold_shape) == 0:
                 self._new_piece()
@@ -329,3 +335,9 @@ class TetrisEngine:
                 action_name = f"move_{move}_right_rotate_{rotate}"
                 action_state_dict[action_name] = (final_shape, final_anchor, final_board)
         return action_state_dict
+
+    def get_board(self):
+        self.board = self.set_piece(self.shape, self.anchor, self.board, True)
+        state = np.copy(self.board)
+        self.board = self.set_piece(self.shape, self.anchor, self.board, False)
+        return state
