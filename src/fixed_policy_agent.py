@@ -6,7 +6,7 @@ import numpy as np
 
 
 width, height = 10, 20  # standard tetris friends rules
-engine = TetrisEngine(width, height)
+engine = TetrisEngine(width, height, enable_KO=False)
 
 
 class FixedPolicyAgent:

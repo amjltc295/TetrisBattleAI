@@ -211,19 +211,22 @@ class TetrisEngine:
         action_final_location_map = self.get_valid_final_states(
             self.shape, self.anchor, self.board)
         self.shape, self.anchor, self.board, actions = action_final_location_map[action]
-        cleared_lines, reward, done = self._handle_dropped(reward)
+        cleared_lines, KOed = self._handle_dropped(reward)
+        reward += cleared_lines * 10
+        reward -= KOed * 10
         self.board = self.set_piece(self.shape, self.anchor, self.board, True)
         state = np.copy(self.board)
         self.board = self.set_piece(self.shape, self.anchor, self.board, False)
         self._update_states()
 
-        return state, reward, done, cleared_lines
+        return state, reward, self.game_over, cleared_lines
 
     def clear(self):
         if not self.enable_KO:
             self.time = 0
             self.score = 0
             self.board = np.zeros_like(self.board)
+            self.game_over = False
         self._new_piece()
         self.hold_locked = False
         self.garbage_lines = 0
