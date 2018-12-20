@@ -159,7 +159,7 @@ class GlobalEngine:
         self.compare_score()
         logger.info(f"Winner: {self.winner}")
         logger.info(f"States: {self.engine_states}")
-        self.tear_down()
+        self.tear_down(None, None)
 
         return self.dbs
 
@@ -201,7 +201,7 @@ class GlobalEngine:
         self.engine_states[idx]['reward'] += reward
         self.engine_states[idx]['lines_sent'] += cleared_lines
 
-    def tear_down(self):
+    def tear_down(self, sig, frame):
         if not self.use_gui:
             curses.endwin()
         sys.exit(0)
