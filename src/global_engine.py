@@ -1,9 +1,13 @@
 import argparse
 import curses
 import time
+import signal
+import sys
 
 from engine import TetrisEngine
 from gui.gui import GUI
+import fixed_policy_agent
+from logging_config import logger
 
 
 def parse_args():
@@ -13,8 +17,6 @@ def parse_args():
     parser.add_argument('-n', '--player_num', type=int, default=2, help='Number of players')
     parser.add_argument('-b', '--block_size', type=int, default=30, help='Set block size to enlarge GUI')
     parser.add_argument('-g', '--use_gui', type=int, default=0, help='Active output to gui')
-    parser.add_argument('-f', '--step_to_final', default=False, action='store_true',
-                        help='One step to the final location')
     args = parser.parse_args()
     return args
 
@@ -22,7 +24,7 @@ def parse_args():
 class GlobalEngine:
     def __init__(
         self, width, height, player_num, use_gui, block_size,
-        game_time=120, KO_num_to_win=2
+        game_time=120, KO_num_to_win=5
     ):
         self.width = width
         self.height = height
@@ -37,8 +39,22 @@ class GlobalEngine:
         self.use_gui = use_gui
         self.pause = False
 
+        self.key_action_map = {
+            ord('a'): "move_left",  # Shift left
+            ord('d'): "move_right",  # Shift right
+            ord('w'): "hard_drop",  # Hard drop
+            ord('s'): "soft_drop",  # Soft drop
+            ord('q'): "rotate_left",  # Rotate left
+            ord('e'): "rotate_right",  # Rotate right
+            ord('f'): "hold"   # Hold
+        }
         self.engines = {}
+        self.players = {}
         for i in range(player_num):
+            if i == 0:
+                self.players[i] = 'keyboard'
+            else:
+                self.players[i] = 'fixed_policy_agent'
             self.engines[i] = TetrisEngine(width, height)
             self.engines[i].clear()
 
@@ -52,6 +68,7 @@ class GlobalEngine:
             self.gui = gui
         else:
             self.stdscr = curses.initscr()
+            curses.noecho()
 
         # Store play information
         self.dbs = {}
@@ -72,15 +89,6 @@ class GlobalEngine:
                 "garbage_lines": 0,
                 "highest_line": 0
             }
-            self.key_action_map = {
-                ord('a'): 0,  # Shift left
-                ord('d'): 1,  # Shift right
-                ord('w'): 2,  # Hard drop
-                ord('s'): 3,  # Soft drop
-                ord('q'): 4,  # Rotate left
-                ord('e'): 5,  # Rotate right
-                ord('f'): 7   # Hold
-            }
             # Initialize dbs
             self.dbs[i] = []
 
@@ -90,7 +98,7 @@ class GlobalEngine:
         if key in self.key_action_map:
             action = self.key_action_map[key]
         else:
-            action = 6
+            action = 'idle'
         return action
 
     def sent_lines(self, idx, cleared_lines):
@@ -113,64 +121,74 @@ class GlobalEngine:
                 self.winner = idx
                 max_score = score
 
-    def get_action(self, step_to_final):
-        if self.use_gui:
-            key = self.gui.last_gui_input()
-            """
-            while key not in self.key_action_map:
-                key = self.gui.last_gui_input()
-                self.gui.update_screen()
+    def get_action(self, engine_idx):
+        playert_type = self.players[engine_idx]
+        if playert_type == 'keyboard':
+            return self.get_action_from_keyboard()
+        elif playert_type == 'fixed_policy_agent':
+            return self.get_action_from_fixed_policy_agent(self.engines[engine_idx])
+        else:
+            raise NotImplementedError(f"Player type {playert_type} not exists")
 
-            """
-        else:
-            key = self.stdscr.getch()
-        if step_to_final:
-            move = chr(key)
-            if move == '-':
-                move += chr(key)
-            rotate = chr(key)
-            action = f"move_{move}_right_rotate_{rotate}"
-        else:
-            action = self.keyboard_control(key)
+    def get_action_from_fixed_policy_agent(self, engine):
+        action = fixed_policy_agent.agent.get_action(
+            engine, engine.shape, engine.anchor, engine.board
+        )
         return action
 
-    def play_game(self, step_to_final=False):
+    def get_action_from_keyboard(self):
+        def get_key():
+            if self.use_gui:
+                key = self.gui.last_gui_input()
+            else:
+                key = self.stdscr.getch()
+            return key
+        key = get_key()
+        action = self.keyboard_control(key)
+        return action
+
+    def play_game(self):
         # Initialization
         self.setup()
 
         game_over = False
         while time.time() - self.start_time < self.game_time and not game_over:
-            action = self.get_action(step_to_final)
+            self.update_screen()
+            game_over = self.update_engines()
 
-            if not self.use_gui:
-                self.stdscr.clear()
-            for idx, engine in self.engines.items():
-                # Game step
-                if step_to_final:
-                    state, reward, self.done, cleared_lines = engine.step_to_final(action)
-                else:
-                    state, reward, self.done, cleared_lines = engine.step(action)
-
-                # Update state
-                self.set_engine_state(idx, engine, reward, cleared_lines)
-                self.sent_lines(idx, cleared_lines)
-                self.dbs[idx].append((state, reward, self.done, action))
-
-                # Render
-                if not self.use_gui:
-                    self.stdscr.addstr(str(engine))
-                    self.stdscr.addstr(f'reward: {self.engine_states[idx]}\n')
-
-                if self.engine_states[idx]['KO'] >= self.KO_num_to_win:
-                    game_over = True
-            if self.use_gui:
-                self.gui.update_screen()
-            else:
-                self.stdscr.addstr(f'Time: {time.time() - self.start_time:.1f}\n')
         self.compare_score()
-        print(f"Winner: {self.winner} States: {self.engine_states}")
+        logger.info(f"Winner: {self.winner}")
+        logger.info(f"States: {self.engine_states}")
+        self.tear_down(None, None)
 
         return self.dbs
+
+    def update_engines(self):
+        game_over = False
+        for idx, engine in self.engines.items():
+            action = self.get_action(idx)
+
+            # Game step
+            state, reward, self.done, cleared_lines = engine.step(action)
+
+            # Update state
+            self.set_engine_state(idx, engine, reward, cleared_lines)
+            self.sent_lines(idx, cleared_lines)
+            self.dbs[idx].append((state, reward, self.done, action))
+
+            if self.engine_states[idx]['KO'] >= self.KO_num_to_win:
+                game_over = True
+        return game_over
+
+    def update_screen(self):
+        if self.use_gui:
+            self.gui.update_screen()
+        else:
+            self.stdscr.clear()
+            for idx, engine in self.engines.items():
+                self.stdscr.addstr(str(engine))
+                self.stdscr.addstr(f'reward: {self.engine_states[idx]}\n')
+            self.stdscr.addstr(f'Time: {time.time() - self.start_time:.1f}\n')
 
     def set_engine_state(self, idx, engine, reward, cleared_lines):
         self.engine_states[idx]['garbage_lines'] = engine.garbage_lines
@@ -183,8 +201,20 @@ class GlobalEngine:
         self.engine_states[idx]['reward'] += reward
         self.engine_states[idx]['lines_sent'] += cleared_lines
 
+    def tear_down(self, sig, frame):
+        if not self.use_gui:
+            curses.endwin()
+        sys.exit(0)
+
 
 if __name__ == '__main__':
     args = parse_args()
-    global_engine = GlobalEngine(args.width, args.height, args.player_num, args.use_gui, args.block_size)
-    dbs = global_engine.play_game(args.step_to_final)
+    global_engine = GlobalEngine(
+        args.width, args.height, args.player_num, args.use_gui, args.block_size,
+    )
+    signal.signal(signal.SIGINT, global_engine.tear_down)
+    try:
+        dbs = global_engine.play_game()
+    except Exception as err:
+        logger.error(err, exc_info=True)
+        global_engine.tear_down()

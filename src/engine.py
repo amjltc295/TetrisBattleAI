@@ -32,12 +32,12 @@ def is_occupied(shape, anchor, board):
     return False
 
 
-def left(shape, anchor, board):
+def move_left(shape, anchor, board):
     new_anchor = (anchor[0] - 1, anchor[1])
     return (shape, anchor) if is_occupied(shape, new_anchor, board) else (shape, new_anchor)
 
 
-def right(shape, anchor, board):
+def move_right(shape, anchor, board):
     new_anchor = (anchor[0] + 1, anchor[1])
     return (shape, anchor) if is_occupied(shape, new_anchor, board) else (shape, new_anchor)
 
@@ -77,14 +77,14 @@ class TetrisEngine:
 
         # actions are triggered by letters
         self.value_action_map = {
-            0: left,
-            1: right,
-            2: hard_drop,
-            3: soft_drop,
-            4: rotate_left,
-            5: rotate_right,
-            6: idle,
-            7: self.hold,
+            "move_left": move_left,
+            "move_right": move_right,
+            "hard_drop": hard_drop,
+            "soft_drop": soft_drop,
+            "rotate_left": rotate_left,
+            "rotate_right": rotate_right,
+            "idle": idle,
+            "hold": self.hold,
         }
         self.action_value_map = dict([(j, i) for i, j in self.value_action_map.items()])
         self.nb_actions = len(self.value_action_map)
@@ -96,6 +96,7 @@ class TetrisEngine:
         self.shape = None
         self.shape_name = None
         self.n_deaths = 0
+        self.game_over = False
 
         # used for generating shapes
         self._shape_counts = [0] * len(shapes)
@@ -128,9 +129,11 @@ class TetrisEngine:
                 return shape_names[i], shapes[shape_names[i]]
 
     def _new_piece(self):
-        # Place randomly on x-axis with 2 tiles padding
-        self.anchor = (self.width // 2, 1)
         self.shape_name, self.shape = self.next_shape_name, self.next_shape
+        self.anchor = (self.width // 2, 1)
+        while is_occupied(self.shape, self.anchor, self.board):
+            self.anchor = (self.anchor[0], self.anchor[1] - 1)
+
         self.next_shape_name, self.next_shape = self._choose_shape()
 
     def _has_dropped(self):
@@ -151,7 +154,7 @@ class TetrisEngine:
         valid_action_sum = 0
 
         for value, fn in self.value_action_map.items():
-            if value == 7:
+            if value == "hold":
                 continue
             # If they're equal, it is not a valid action
             if fn(self.shape, self.anchor, self.board) != (self.shape, self.anchor):
@@ -164,42 +167,42 @@ class TetrisEngine:
 
         reward = self.valid_action_count()
 
-        # Drop each 3 step
-        done = False
+        # Drop each step_num_to_drop step
         cleared_lines = 0
-        if self.drop_count == self.step_num_to_drop or action == 2:
+        if self.drop_count == self.step_num_to_drop or action == "hard_drop":
             self.drop_count = 0
-            if action != 3:
+            if action != "soft_drop":
                 self.shape, self.anchor = soft_drop(self.shape, self.anchor, self.board)
             if self._has_dropped():
-                cleared_lines, reward, done = self._handle_dropped(reward)
+                cleared_lines, KOed = self._handle_dropped()
+                reward += cleared_lines * 10
+                reward -= KOed * 10
 
         # Update time and reward
         self.time += 1
         self.drop_count += 1
 
-        self.board = self.set_piece(self.shape, self.anchor, self.board, True)
-        state = np.copy(self.board)
-        self.board = self.set_piece(self.shape, self.anchor, self.board, False)
+        state = self.get_board()
         self._update_states()
-        return state, reward, done, cleared_lines
+        return state, reward, self.game_over, cleared_lines
 
-    def _handle_dropped(self, reward, done=False):
+    def _handle_dropped(self):
         self.board = self.set_piece(self.shape, self.anchor, self.board, True)
         cleared_lines, self.board = self.clear_lines(self.board)
-        reward += cleared_lines * 10
         self.score += cleared_lines
         self.total_cleared_lines += cleared_lines
+        KOed = False
         if np.any(self.board[:, 0]):
+            self.board = self.set_piece(self.shape, self.anchor, self.board, True)
+            if self.garbage_lines == 0:
+                self.game_over = True
             self.clear()
             self.n_deaths += 1
-            if self.garbage_lines == 0:
-                done = True
-            reward = -10
+            KOed = True
         else:
             self._new_piece()
             self.hold_locked = False
-        return cleared_lines, reward, done
+        return cleared_lines, KOed
 
     def step_to_final(self, action):
         reward = 0
@@ -207,20 +210,23 @@ class TetrisEngine:
         # actions that directly go to the final locations
         action_final_location_map = self.get_valid_final_states(
             self.shape, self.anchor, self.board)
-        self.shape, self.anchor, self.board = action_final_location_map[action]
-        cleared_lines, reward, done = self._handle_dropped(reward)
+        self.shape, self.anchor, self.board, actions = action_final_location_map[action]
+        cleared_lines, KOed = self._handle_dropped()
+        reward += cleared_lines * 10
+        reward -= KOed * 10
         self.board = self.set_piece(self.shape, self.anchor, self.board, True)
         state = np.copy(self.board)
         self.board = self.set_piece(self.shape, self.anchor, self.board, False)
         self._update_states()
 
-        return state, reward, done, cleared_lines
+        return state, reward, self.game_over, cleared_lines
 
     def clear(self):
         if not self.enable_KO:
             self.time = 0
             self.score = 0
             self.board = np.zeros_like(self.board)
+            self.game_over = False
         self._new_piece()
         self.hold_locked = False
         self.garbage_lines = 0
@@ -271,6 +277,30 @@ class TetrisEngine:
             new_board[:, -self.garbage_lines:] = -1
         for i in range(self.height - self.previous_garbage_lines - 1, -1, -1):
             new_board[:, i - (self.garbage_lines - self.previous_garbage_lines)] = self.board[:, i]
+
+        # Check if additional garbage_lines squeeze the floating block
+        # If so, force it to drop
+        squeezed = 0
+        while is_occupied(self.shape, self.anchor, new_board):
+            self.anchor = (self.anchor[0], self.anchor[1] - 1)
+            squeezed += 1
+        if squeezed > 1:
+            self.shape, self.anchor = hard_drop(self.shape, self.anchor, new_board)
+            new_board = self.set_piece(self.shape, self.anchor, new_board, True)
+
+        # Check additional garbage_lines cause KO
+        if np.any(new_board[:, 0]):
+            if self.garbage_lines == 0:
+                self.game_over = True
+            new_board = np.zeros_like(self.board)
+            for i in range(self.height - self.previous_garbage_lines - 1, -1, -1):
+                new_board[:, i + self.previous_garbage_lines] = self.board[:, i]
+            new_board = self.set_piece(self.shape, self.anchor, new_board, False)
+            self.shape, self.anchor = hard_drop(self.shape, self.anchor, new_board)
+            new_board = self.set_piece(self.shape, self.anchor, new_board, True)
+            self.clear()
+            self.n_deaths += 1
+
         self.previous_garbage_lines = self.garbage_lines
         self.board = new_board
         for i in range(self.height - 1, -1, -1):
@@ -292,7 +322,7 @@ class TetrisEngine:
             self.hold_shape_name = tmp_shape_name
 
         # Prevent collision after hold
-        actions = [0, 1, 4, 5]
+        actions = ["move_left", "move_right"]
         count = -1
         while is_occupied(self.shape, self.anchor, board):
             count += 1
@@ -301,31 +331,36 @@ class TetrisEngine:
                 self.shape, self.anchor = self.value_action_map[action](self.shape, self.anchor, board)
             except Exception:
                 self.anchor = (self.anchor[0], self.anchor[1] - 1)
+                count = -1
         return self.shape, self.anchor
 
     def get_valid_final_states(self, shape, anchor, board):
         # Reference https://github.com/brendanberg01/TetrisAI/blob/master/ai.py
         action_state_dict = {}
-        for move in range(-self.width // 2, self.width // 2):
-            for rotate in range(0, 3):
+        for move in range(-self.width // 2, self.width // 2 + 1):
+            for rotate in range(0, 4):
+                actions = []
                 final_shape, final_anchor, final_board = shape, anchor, deepcopy(board)
                 for i in range(rotate):
-                    final_shape, final_anchor = rotate_right(final_shape, final_anchor, board)
+                    actions.append("rotate_right")  # right_rotate
                 if move > 0:
                     for i in range(move):
-                        final_shape, final_anchor = right(final_shape, final_anchor, board)
+                        actions.append("move_right")  # right
                 else:
                     for i in range(-move):
-                        final_shape, final_anchor = left(final_shape, final_anchor, board)
+                        actions.append("move_left")  # left
 
-                final_shape, final_anchor = hard_drop(final_shape, final_anchor, board)
+                actions.append("hard_drop")  # hard_drop
+                for action in actions:
+                    final_shape, final_anchor = self.value_action_map[action](
+                        final_shape, final_anchor, board
+                    )
                 final_board = self.set_piece(final_shape, final_anchor, board, True)
                 action_name = f"move_{move}_right_rotate_{rotate}"
-                action_state_dict[action_name] = (final_shape, final_anchor, final_board)
+                action_state_dict[action_name] = (final_shape, final_anchor, final_board, actions)
         return action_state_dict
 
     def get_board(self):
-        self.board = self.set_piece(self.shape, self.anchor, self.board, True)
-        state = np.copy(self.board)
-        self.board = self.set_piece(self.shape, self.anchor, self.board, False)
-        return state
+        board = deepcopy(self.board)
+        board = self.set_piece(self.shape, self.anchor, self.board, True)
+        return board
