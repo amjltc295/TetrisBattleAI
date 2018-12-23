@@ -161,7 +161,6 @@ if __name__ == '__main__':
             # Select and perform an action
             action_final_location_map = engine.get_valid_final_states(engine.shape, engine.anchor, engine.board)
             act_pairs = [(k, v[2]) for k, v in action_final_location_map.items()]
-
             act_prob, V = get_action_probability(model, state, act_pairs)
             act_idx = int(np.random.choice(len(act_prob), 1, p=act_prob.cpu().detach().numpy()))
             act_prob_list.append(act_prob[act_idx].unsqueeze(0))
