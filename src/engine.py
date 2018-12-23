@@ -219,7 +219,7 @@ class TetrisEngine:
         self.board = self.set_piece(self.shape, self.anchor, self.board, False)
         self._update_states()
 
-        return state, reward, self.game_over, cleared_lines
+        return state, reward, KOed, cleared_lines
 
     def clear(self):
         if not self.enable_KO:
