@@ -12,8 +12,8 @@ import torch.nn.functional as F
 from collections import deque
 from engine import TetrisEngine
 
-width, height = 10, 20  # standard tetris friends rules
-engine = TetrisEngine(width, height)
+width, height = 10, 8  # standard tetris friends rules
+engine = TetrisEngine(width, height, enable_KO=False)
 eps = 10.**-8
 
 use_cuda = torch.cuda.is_available()
@@ -38,6 +38,12 @@ class AC(nn.Module):
 
     def forward(self, x, placement):
         batch, _, _, _ = x.shape
+#         
+        base = torch.ones([batch, 1, width, 20-height]).type(FloatTensor)
+        base.requires_grad_(False)
+        x = torch.cat([x, base], dim=-1)
+        placement = torch.cat([placement, base], dim=-1)
+#         
         x = self.cnn(x)
         x = x.view(batch, -1)
         placement = self.cnn(placement)
@@ -147,10 +153,12 @@ if __name__ == '__main__':
     ######################################################################
     score_q = deque(maxlen=100)
     model.train()
-    f = open('ac.out', 'w+')
+    f = open('ac_easy.out', 'w+')
     for i_episode in count(start_epoch):
         # Initialize the environment and state
+        
         state = engine.clear()
+        state,_,_,_ = engine.step(6)
         score = 0
         rewards = []
         entropy_loss = 0
@@ -170,6 +178,8 @@ if __name__ == '__main__':
 
             # Observations
             state, reward, done, cleared_lines = engine.step_to_final(act)
+            # for training purpose
+            reward = cleared_lines**2 if not done else -100
             # Accumulate reward
             score += cleared_lines
             rewards.append(reward)
@@ -216,7 +226,7 @@ if __name__ == '__main__':
                         'epoch': i_episode,
                         'state_dict': model.state_dict(),
                         'best_score': best_score,
-                        }, is_best, filename='pg.pth.tar', best_name='pg_best.pth.tar')
+                        }, is_best, filename='ac_easy.pth.tar', best_name='ac_easy_best.pth.tar')
                     best_score = score
                 break
 

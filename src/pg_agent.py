@@ -149,6 +149,8 @@ if __name__ == '__main__':
 
             # Observations
             state, reward, done, cleared_lines = engine.step_to_final(act)
+            # for training purpose
+            reward = cleared_lines**2 if not done else -100
             # Accumulate reward
             score += cleared_lines
             rewards.append(reward)
