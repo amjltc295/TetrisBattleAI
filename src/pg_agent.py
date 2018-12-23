@@ -13,7 +13,7 @@ from collections import deque
 from engine import TetrisEngine
 
 width, height = 10, 20  # standard tetris friends rules
-engine = TetrisEngine(width, height)
+engine = TetrisEngine(width, height, enable_KO=False)
 eps = 10.**-8
 
 use_cuda = torch.cuda.is_available()
@@ -132,6 +132,7 @@ if __name__ == '__main__':
     for i_episode in count(start_epoch):
         # Initialize the environment and state
         state = engine.clear()
+        state, _, _, _ = engine.step('idle')
         score = 0
         rewards = []
         entropy_loss = 0
