@@ -1,6 +1,6 @@
 from copy import deepcopy
 import random
-import heuristic
+
 import numpy as np
 
 shapes = {
@@ -116,7 +116,6 @@ class TetrisEngine:
         self.enable_KO = enable_KO  # clear only the garbage lines after dead
 
         # clear after initializing
-        self.pre_board = None
         self.clear()
 
     def _choose_shape(self):
@@ -219,16 +218,6 @@ class TetrisEngine:
         state = np.copy(self.board)
         self.board = self.set_piece(self.shape, self.anchor, self.board, False)
         self._update_states()
-        
-#         reward = heuristic.heuristic_fn(self.board, cleared_lines) - heuristic.heuristic_fn(self.pre_board , 0)
-#         self.pre_board = deepcopy(self.board)
-#         reward = heuristic.heuristic_fn(state, cleared_lines)
-#         reward = heuristic.heuristic_fn(state, cleared_lines)
-#         r = {0:0, 1:40,: 2:120, 3:300, 4:1200}
-        if not done:
-            reward = cleared_lines ** 2
-        else:
-            reward = -100
 
         return state, reward, self.game_over, cleared_lines
 
@@ -242,8 +231,7 @@ class TetrisEngine:
         self.hold_locked = False
         self.garbage_lines = 0
         self.highest_line = 0
-        self.board = np.zeros_like(self.board)
-        self.pre_board = deepcopy(self.board)
+
         return self.board
 
     def set_piece(self, shape, anchor, board, on=False):
