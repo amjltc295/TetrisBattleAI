@@ -1,5 +1,8 @@
 import random
+from itertools import count
+import numpy as np
 from engine import TetrisEngine
+from genetic_heuristic import gen_heuristic
 
 genes = ['holes_stack_area', 'holes_clean_area', 'height_stack_area',
          'height_clean_area', 'blocked_lines', 'num_stack_area',
@@ -32,7 +35,37 @@ class DNA:
         return dna_str
 
     def calculate_fitness(self):
-        self.fitness = sum(self.dict_genes.values())
+        state = engine.clear()
+        cl = 0
+        score = 0
+        for t in count():
+            # Select and perform an action
+            actions_name, placement, actions = self.select_action(
+                self.engine, self.engine.shape, self.engine.anchor, self.engine.board)
+            # Observations
+            state, reward, done, cleared_lines = engine.step_to_final(actions_name)
+            # Perform one step of the optimization (on the target network)
+            cl += cleared_lines
+            score += reward
+            print(engine)
+            if done:
+                # Evaluate this DNA
+                print(engine)
+                self.fitness = cl * 1000 + t
+                break
+
+    def select_action(self, engine, shape, anchor, board):
+        # All possible final states
+        actions_name_final_location_map = engine.get_valid_final_states(shape, anchor, board)
+        # act_pairs = (dict_key, final_board, actions)
+        act_pairs = [(k, v[2], v[3]) for k, v in actions_name_final_location_map.items()]
+        # Only final boards
+        placements = [p for k, p, actions in act_pairs]
+        # Uses the heuristic for every possible placement
+        h_score = [gen_heuristic(s, self.dict_genes) for s in placements]
+        act_idx = np.argmax(h_score)
+        actions_name, final_placement, actions = act_pairs[act_idx]
+        return actions_name, final_placement, actions
 
     def make_sexy_baby(self, parent2):
         baby = DNA(self.mutation_rate, self.engine)
@@ -72,6 +105,7 @@ class Population:
         for i in range(self.population_size):
             self.population[i].calculate_fitness()
             total += self.population[i].fitness
+            print("Fitness of DNA ", i, ": ", self.population[i].fitness)
             if self.population[i].fitness > best.fitness:
                 best = self.population[i]
         self.best = best
@@ -124,11 +158,9 @@ class GeneticAlgorithm:
             self.population.calc_fitness_prob()
             print("Max fitness of generation ", self.population.current_generation,
                   " is ", self.population.max_fitness)
-            # print("Average fitness: ", self.population.get_avg_fitness())
-            # print(self.population.best)
 
 
 if __name__ == '__main__':
-    engine = TetrisEngine(width, height)
-    darwin = GeneticAlgorithm(100, 0.01, 200, engine)
+    engine = TetrisEngine(width, height, enable_KO=False)
+    darwin = GeneticAlgorithm(100, 0.01, 50, engine)
     darwin.evolve_the_beasts()
