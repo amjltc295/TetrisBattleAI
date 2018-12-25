@@ -96,7 +96,6 @@ class TetrisEngine:
         self.shape = None
         self.shape_name = None
         self.n_deaths = 0
-        self.game_over = False
 
         # used for generating shapes
         self._shape_counts = [0] * len(shapes)
@@ -169,22 +168,24 @@ class TetrisEngine:
 
         # Drop each step_num_to_drop step
         cleared_lines = 0
+        game_over = False
         if self.drop_count == self.step_num_to_drop or action == "hard_drop":
             self.drop_count = 0
             if action != "soft_drop":
                 self.shape, self.anchor = soft_drop(self.shape, self.anchor, self.board)
             if self._has_dropped():
-                cleared_lines, KOed = self._handle_dropped()
+                cleared_lines, KOed, game_over = self._handle_dropped()
                 reward += cleared_lines * 10
-                reward -= KOed * 10
+                reward -= (KOed if self.enable_KO else game_over) * 100
 
         # Update time and reward
         self.time += 1
         self.drop_count += 1
 
         state = self.get_board()
-        self._update_states()
-        return state, reward, self.game_over, cleared_lines
+        if not game_over:
+            game_over = self._update_states()
+        return state, reward, game_over, cleared_lines
 
     def _handle_dropped(self):
         self.board = self.set_piece(self.shape, self.anchor, self.board, True)
@@ -192,17 +193,18 @@ class TetrisEngine:
         self.score += cleared_lines
         self.total_cleared_lines += cleared_lines
         KOed = False
+        game_over = False
         if np.any(self.board[:, 0]):
             self.board = self.set_piece(self.shape, self.anchor, self.board, True)
             if self.garbage_lines == 0:
-                self.game_over = True
+                game_over = True
             self.clear()
             self.n_deaths += 1
             KOed = True
         else:
             self._new_piece()
             self.hold_locked = False
-        return cleared_lines, KOed
+        return cleared_lines, KOed, game_over
 
     def step_to_final(self, action):
         reward = 0
@@ -211,22 +213,22 @@ class TetrisEngine:
         action_final_location_map = self.get_valid_final_states(
             self.shape, self.anchor, self.board)
         self.shape, self.anchor, self.board, actions = action_final_location_map[action]
-        cleared_lines, KOed = self._handle_dropped()
+        cleared_lines, KOed, game_over = self._handle_dropped()
         reward += cleared_lines * 10
-        reward -= KOed * 10
+        reward -= (KOed if self.enable_KO else game_over) * 100
         self.board = self.set_piece(self.shape, self.anchor, self.board, True)
         state = np.copy(self.board)
         self.board = self.set_piece(self.shape, self.anchor, self.board, False)
-        self._update_states()
+        if not game_over:
+            game_over = self._update_states()
 
-        return state, reward, KOed, cleared_lines
+        return state, reward, game_over, cleared_lines
 
     def clear(self):
         if not self.enable_KO:
             self.time = 0
             self.score = 0
             self.board = np.zeros_like(self.board)
-            self.game_over = False
         self._new_piece()
         self.hold_locked = False
         self.garbage_lines = 0
@@ -289,9 +291,10 @@ class TetrisEngine:
             new_board = self.set_piece(self.shape, self.anchor, new_board, True)
 
         # Check additional garbage_lines cause KO
+        game_over = False
         if np.any(new_board[:, 0]):
             if self.garbage_lines == 0:
-                self.game_over = True
+                game_over = True
             new_board = np.zeros_like(self.board)
             for i in range(self.height - self.previous_garbage_lines - 1, -1, -1):
                 new_board[:, i + self.previous_garbage_lines] = self.board[:, i]
@@ -306,6 +309,7 @@ class TetrisEngine:
         for i in range(self.height - 1, -1, -1):
             if sum(self.board[:, i]) > 0:
                 self.highest_line = self.height - i
+        return game_over
 
     def hold(self, shape, anchor, board):
         if self.hold_locked:
