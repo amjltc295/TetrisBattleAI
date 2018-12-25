@@ -21,7 +21,7 @@ def run():
         print('reward : %.2f' % reward)
         print('score : %d' % score)
         # print(action)
-        time.sleep(1)
+        time.sleep(0.1)
 
         if done:
             print('score {0}'.format(score))
