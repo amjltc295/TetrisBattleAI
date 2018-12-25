@@ -10,13 +10,13 @@ engine = TetrisEngine(width, height)
 def run():
     model = ac_agent.AC()
     use_cuda = torch.cuda.is_available()
-    use_cuda = False
     if use_cuda:
         model.cuda()
     epoch, best_score = ac_agent.load_checkpoint(model, './ac_best.pth.tar')
     model.train()
 #     model.eval()  # That make network fail, I guess that because of BathNormal layer.
     print('training epoch : %d, best score %.2f' % (epoch, best_score))
+    time.sleep(2)
     score = 0
     state = engine.clear()
     state, _, _, _ = engine.step('idle')

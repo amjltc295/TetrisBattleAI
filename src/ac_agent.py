@@ -108,7 +108,7 @@ def get_action_probability(model, state, act_pairs):
 def save_checkpoint(state, is_best, filename, best_name):
     torch.save(state, filename)
     if is_best:
-        shutil.copyfile(filename, best_name)
+        torch.save(state, best_name)
 
 
 def load_checkpoint(model, filename, critic_opt=None, actor_opt=None):
@@ -142,8 +142,8 @@ if __name__ == '__main__':
         if os.path.isfile(CHECKPOINT_FILE):
             print("=> loading checkpoint '{}'".format(CHECKPOINT_FILE))
             start_epoch, best_score = load_checkpoint(model, CHECKPOINT_FILE, critic_opt, actor_opt)
-            print("=> loaded checkpoint '{}' (epoch {})"
-                  .format(CHECKPOINT_FILE, start_epoch))
+            print("=> loaded checkpoint '{}' (epoch {}) (best score {})"
+                  .format(CHECKPOINT_FILE, start_epoch, best_score))
         else:
             print("=> no checkpoint found at '{}'".format(CHECKPOINT_FILE))
 
@@ -189,8 +189,6 @@ if __name__ == '__main__':
                 critic_opt.zero_grad()
                 critic_loss = F.smooth_l1_loss(V, discounted_rewards)
                 critic_loss.backward(retain_graph=True)
-                for param in critic_params:
-                    param.grad.data.clamp_(-1, 1)
                 critic_opt.step()
 
                 actor_opt.zero_grad()
@@ -200,13 +198,12 @@ if __name__ == '__main__':
                 adv = (r+GAMMA*next_V-V).detach()
                 loss = torch.sum(-torch.log(act_probs + eps) * adv) + 0.01*entropy_loss
                 loss.backward()
-                for param in actor_params:
-                    param.grad.data.clamp_(-1, 1)
                 actor_opt.step()
                 score_q.append(score)
+                mean_score = np.mean(score_q)
                 log = 'epoch {0} score {1} rewards {2} score_mean {3}'.format(
                         i_episode,
-                        '%.2f' % score, '%.2f' % R, '%.2f' % np.mean(score_q)
+                        '%.2f' % score, '%.2f' % R, '%.2f' % mean_score
                         )
                 f.write(log + '\n')
                 # Train model
@@ -214,9 +211,9 @@ if __name__ == '__main__':
                     print(log)
                     if loss:
                         print('actor loss : {:.2f} critic loss : {:.2f}'.format(loss, critic_loss))
-                # Checkpoint
-                if i_episode % 100 == 0:
-                    is_best = True if score > best_score else False
+                    is_best = True if mean_score > best_score else False
+                    if is_best:
+                        best_score = mean_score
                     save_checkpoint({
                         'epoch': i_episode,
                         'state_dict': model.state_dict(),
@@ -224,7 +221,6 @@ if __name__ == '__main__':
                         'critic_opt': critic_opt.state_dict(),
                         'actor_opt': actor_opt.state_dict(),
                         }, is_best, filename='ac.pth.tar', best_name='ac_best.pth.tar')
-                    best_score = score
                 break
 
     f.close()
