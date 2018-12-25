@@ -1,2 +1,2 @@
-*.tar
-log.out
+/logs/*
+/tar/*

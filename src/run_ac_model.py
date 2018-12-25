@@ -12,7 +12,7 @@ def run():
     use_cuda = torch.cuda.is_available()
     if use_cuda:
         model.cuda()
-    epoch, best_score = ac_agent.load_checkpoint(model, './ac_best.pth.tar')
+    epoch, best_score = ac_agent.load_checkpoint(model, './tar/ac_best.pth.tar')
     model.train()
 #     model.eval()  # That make network fail, I guess that because of BathNormal layer.
     print('training epoch : %d, best score %.2f' % (epoch, best_score))

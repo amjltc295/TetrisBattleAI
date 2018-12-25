@@ -150,7 +150,7 @@ if __name__ == '__main__':
     ######################################################################
     score_q = deque(maxlen=100)
     model.train()
-    f = open('ac.out', 'w+')
+    f = open('./logs/ac.out', 'w+')
     for i_episode in count(start_epoch):
         # Initialize the environment and state
         state = engine.clear()
@@ -220,7 +220,7 @@ if __name__ == '__main__':
                         'best_score': best_score,
                         'critic_opt': critic_opt.state_dict(),
                         'actor_opt': actor_opt.state_dict(),
-                        }, is_best, filename='ac.pth.tar', best_name='ac_best.pth.tar')
+                        }, is_best, filename='./tar/ac.pth.tar', best_name='./tar/ac_best.pth.tar')
                 break
 
     f.close()
