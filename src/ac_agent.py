@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys
 import os
-import shutil
 import numpy as np
 from collections import namedtuple
 from itertools import count
