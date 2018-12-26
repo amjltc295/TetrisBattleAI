@@ -1,5 +1,6 @@
 import random
 from itertools import count
+import sys
 import numpy as np
 from engine import TetrisEngine
 from genetic_policy_agent import GeneticPolicyAgent
@@ -14,6 +15,32 @@ init_random_value = 1.0
 width, height = 10, 20  # standard tetris friends rules
 
 genetic_agent = GeneticPolicyAgent()
+
+
+# Print iterations progress
+# https://gist.github.com/aubricus/f91fb55dc6ba5557fbab06119420dd6a
+def print_progress(iteration, total, prefix='', suffix='', decimals=1, bar_length=100):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        bar_length  - Optional  : character length of bar (Int)
+    """
+    str_format = "{0:." + str(decimals) + "f}"
+    percents = str_format.format(100 * (iteration / float(total)))
+    filled_length = int(round(bar_length * iteration / float(total)))
+    bar = '#' * filled_length + '-' * (bar_length - filled_length)
+    # bar = '█' * filled_length + '-' * (bar_length - filled_length)
+
+    sys.stdout.write('\r%s |%s| %s%s %s' % (prefix, bar, percents, '%', suffix)),
+
+    if iteration == total:
+        sys.stdout.write('\n')
+    sys.stdout.flush()
 
 
 class DNA:
@@ -78,7 +105,6 @@ class DNA:
         for i in range(len(genes)):
             if random.random() < self.mutation_rate:
                 baby.dict_genes[genes[i]] = random.uniform(-init_random_value, init_random_value)
-
         return baby
 
 
@@ -103,6 +129,7 @@ class Population:
             total += self.population[i].fitness
             if self.population[i].fitness > best.fitness:
                 best = self.population[i]
+            print_progress(i+1, self.population_size)
         self.best = best
         self.max_fitness = best.fitness
         for i in range(self.population_size):
@@ -129,14 +156,14 @@ class Population:
         avg_fitness = avg_fitness / self.population_size
         return avg_fitness
 
-    def get_diversity(self):
+    def print_diversity(self):
         diversity = list()
         for g in range(len(genes)):
             total = 0
             for i in range(self.population_size):
                 total += self.population[i].dict_genes[genes[g]]
             diversity.append(total/self.population_size)
-        return diversity
+        print("Average value for every gen: ", diversity)
 
     def generate_next_generation(self):
         next_generation = list()
@@ -160,14 +187,14 @@ class GeneticAlgorithm:
         for i in range(self.num_generations):
             self.population.generate_next_generation()
             self.population.calc_fitness_prob()
-            print("######################################################")
             print("Generation ", self.population.current_generation)
             print("Max fitness: ", self.population.max_fitness)
+            print("Best child: ", self.population.best)
             print("Average fitness: ", self.population.get_avg_fitness())
-            print(self.population.get_diversity())
+            self.population.print_diversity()
 
 
 if __name__ == '__main__':
     engine = TetrisEngine(width, height, enable_KO=False)
-    darwin = GeneticAlgorithm(100, 0.01, 1, engine)
+    darwin = GeneticAlgorithm(100, 0.01, 200, engine)
     darwin.evolve_the_beasts()
