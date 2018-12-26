@@ -1,7 +1,6 @@
 import random
 from itertools import count
 import sys
-import numpy as np
 from engine import TetrisEngine
 from genetic_policy_agent import GeneticPolicyAgent
 
@@ -46,16 +45,8 @@ def print_progress(iteration, total, prefix='', suffix='', decimals=1, bar_lengt
 class DNA:
     def __init__(self, mutation_rate, engine):
         self.dict_genes = dict()
-        self.dict_genes['holes_stack_area'] = random.uniform(-init_random_value, 0.0)
-        self.dict_genes['holes_clean_area'] = random.uniform(-init_random_value, 0.0)
-        self.dict_genes['height_stack_area'] = random.uniform(0.0, init_random_value)
-        self.dict_genes['height_clean_area'] = random.uniform(-init_random_value, init_random_value)
-        self.dict_genes['aggregation_stack_area'] = random.uniform(0.0, init_random_value)
-        self.dict_genes['aggregation_clean_area'] = random.uniform(-init_random_value, init_random_value)
-        self.dict_genes['clear_lines'] = random.uniform(0.0, init_random_value)
-        # self.dict_genes['blocked_lines'] = random.uniform(-init_random_value, init_random_value)
-        # self.dict_genes['num_stack_area'] = random.uniform(-init_random_value, init_random_value)
-        # self.dict_genes['enemy_blocked_lines'] = random.uniform(-init_random_value, init_random_value)
+        for i in range(len(genes)):
+            self.init_dict_gen(genes[i])
 
         self.mutation_rate = mutation_rate
         self.engine = engine
@@ -66,6 +57,22 @@ class DNA:
         dna_values = self.dict_genes.values()
         dna_str = ', '.join(str(e) for e in dna_values)
         return dna_str
+
+    def init_dict_gen(self, gen_name):
+        if gen_name == genes[0]:
+            self.dict_genes[gen_name] = random.uniform(-init_random_value, 0.0)
+        elif gen_name == genes[1]:
+            self.dict_genes[gen_name] = random.uniform(-init_random_value, 0.0)
+        elif gen_name == genes[2]:
+            self.dict_genes[gen_name] = random.uniform(0.0, init_random_value)
+        elif gen_name == genes[3]:
+            self.dict_genes[gen_name] = random.uniform(-init_random_value, init_random_value)
+        elif gen_name == genes[4]:
+            self.dict_genes[gen_name] = random.uniform(0.0, init_random_value)
+        elif gen_name == genes[5]:
+            self.dict_genes[gen_name] = random.uniform(-init_random_value, init_random_value)
+        elif gen_name == genes[6]:
+            self.dict_genes[gen_name] = random.uniform(0.0, init_random_value)
 
     def calculate_fitness(self):
         total_score = 0
@@ -104,7 +111,7 @@ class DNA:
         # Mutation
         for i in range(len(genes)):
             if random.random() < self.mutation_rate:
-                baby.dict_genes[genes[i]] = random.uniform(-init_random_value, init_random_value)
+                baby.init_dict_gen(genes[i])
         return baby
 
 
@@ -184,6 +191,11 @@ class GeneticAlgorithm:
 
     def evolve_the_beasts(self):
         self.population.calc_fitness_prob()
+        print("Generation ", self.population.current_generation)
+        print("Max fitness: ", self.population.max_fitness)
+        print("Best child: ", self.population.best)
+        print("Average fitness: ", self.population.get_avg_fitness())
+        self.population.print_diversity()
         for i in range(self.num_generations):
             self.population.generate_next_generation()
             self.population.calc_fitness_prob()
@@ -196,5 +208,5 @@ class GeneticAlgorithm:
 
 if __name__ == '__main__':
     engine = TetrisEngine(width, height, enable_KO=False)
-    darwin = GeneticAlgorithm(100, 0.01, 200, engine)
+    darwin = GeneticAlgorithm(100, 0.01, 100, engine)
     darwin.evolve_the_beasts()

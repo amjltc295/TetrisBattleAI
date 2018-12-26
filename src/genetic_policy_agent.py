@@ -1,6 +1,7 @@
 import numpy as np
 from genetic_heuristic import gen_heuristic
 
+
 class GeneticPolicyAgent:
     def __int__(self):
         self.current_actions = []

@@ -1,5 +1,6 @@
 import math
 
+
 def get_hole_stack_area(state):
     width, height = state.shape
     n_hole = 0
@@ -107,12 +108,19 @@ def complete_line(state):
     return n_line
 
 
+def rect_func(x, boarder=16):
+    if x <= boarder:
+        return x
+    else:
+        return -x
+
+
 def gen_heuristic(state, dict_genes):
     holes_value = dict_genes['holes_stack_area'] * get_hole_stack_area(state) + \
                   dict_genes['holes_clean_area'] * get_hole_clean_area(state)
-    height_value = dict_genes['height_stack_area'] * max_height_stack_area(
-        state) + dict_genes['height_clean_area'] * max_height_clean_area(state)
+    max_height_value = dict_genes['height_stack_area'] * rect_func(max_height_stack_area(
+        state)) + dict_genes['height_clean_area'] * max_height_clean_area(state)
     aggregation_value = dict_genes['aggregation_stack_area'] * aggregate_height_stack_area(
         state) + dict_genes['aggregation_clean_area'] * aggregate_height_clean_area(state)
     clear_lines = dict_genes['clear_lines'] * (math.exp(complete_line(state)**2/2) - 1)
-    return holes_value + height_value + aggregation_value + clear_lines
+    return holes_value + max_height_value + aggregation_value + clear_lines
