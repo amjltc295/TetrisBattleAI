@@ -1,3 +1,5 @@
+import math
+
 def get_hole_stack_area(state):
     width, height = state.shape
     n_hole = 0
@@ -55,7 +57,6 @@ def aggregate_height_stack_area(state):
     n_height = 0
     for x in range(width-4):
         n_height += get_height(state, x)
-    print("Aggregate height stack area: ", n_height)
     return n_height
 
 
@@ -64,7 +65,6 @@ def aggregate_height_clean_area(state):
     n_height = 0
     for x in range(width-4, width):
         n_height += get_height(state, x)
-    print("Aggregate height clean area: ", n_height)
     return n_height
 
 
@@ -108,8 +108,11 @@ def complete_line(state):
 
 
 def gen_heuristic(state, dict_genes):
-    holes_value = (dict_genes['holes_stack_area'] - 5.0) * get_hole_stack_area(state) + \
-                  (dict_genes['holes_clean_area'] - 5.0) * get_hole_clean_area(state)
-    height_value = (dict_genes['height_stack_area'] - 5.0) * max_height_stack_area(
-        state) + (dict_genes['height_clean_area'] - 5.0) * max_height_clean_area(state)
-    return holes_value + height_value
+    holes_value = dict_genes['holes_stack_area'] * get_hole_stack_area(state) + \
+                  dict_genes['holes_clean_area'] * get_hole_clean_area(state)
+    height_value = dict_genes['height_stack_area'] * max_height_stack_area(
+        state) + dict_genes['height_clean_area'] * max_height_clean_area(state)
+    aggregation_value = dict_genes['aggregation_stack_area'] * aggregate_height_stack_area(
+        state) + dict_genes['aggregation_clean_area'] * aggregate_height_clean_area(state)
+    clear_lines = dict_genes['clear_lines'] * (math.exp(complete_line(state)**2/2) - 1)
+    return holes_value + height_value + aggregation_value + clear_lines
