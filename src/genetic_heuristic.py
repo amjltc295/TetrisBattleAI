@@ -69,26 +69,11 @@ def aggregate_height_clean_area(state):
     return n_height
 
 
-def bumpiness_clean_area(state):
+def bumpiness(state):
     width, height = state.shape
     ret = 0
     pre_height = 0
-    for x in range(width-4):
-        h = get_height(state, x)
-        if x == 0:
-            diff = 0
-        else:
-            diff = abs(h - pre_height)
-        pre_height = h
-        ret += diff
-    return ret
-
-
-def bumpiness_stack_area(state):
-    width, height = state.shape
-    ret = 0
-    pre_height = 0
-    for x in range(width-4, width):
+    for x in range(width):
         h = get_height(state, x)
         if x == 0:
             diff = 0
@@ -116,11 +101,11 @@ def rect_func(x, boarder=16):
 
 
 def gen_heuristic(state, dict_genes):
-    holes_value = dict_genes['holes_stack_area'] * get_hole_stack_area(state) + \
-                  dict_genes['holes_clean_area'] * get_hole_clean_area(state)
+    holes_value = dict_genes['holes_stack_area'] * (get_hole_stack_area(state)**2) + \
+                  dict_genes['holes_clean_area'] * (get_hole_clean_area(state)**2)
     max_height_value = dict_genes['height_stack_area'] * rect_func(max_height_stack_area(
         state)) + dict_genes['height_clean_area'] * max_height_clean_area(state)
-    aggregation_value = dict_genes['aggregation_stack_area'] * aggregate_height_stack_area(
-        state) + dict_genes['aggregation_clean_area'] * aggregate_height_clean_area(state)
+    aggregation_value = dict_genes['aggregation_stack_area'] * aggregate_height_stack_area(state)
     clear_lines = dict_genes['clear_lines'] * (math.exp(complete_line(state)**2/2) - 1)
-    return holes_value + max_height_value + aggregation_value + clear_lines
+    bumpiness_value = dict_genes['bumpiness'] * bumpiness(state)
+    return holes_value + max_height_value + aggregation_value + clear_lines + bumpiness_value

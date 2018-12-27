@@ -1,11 +1,12 @@
 import random
 from itertools import count
 import sys
+import time
 from engine import TetrisEngine
 from genetic_policy_agent import GeneticPolicyAgent
 
 genes = ['holes_stack_area', 'holes_clean_area', 'height_stack_area', 'height_clean_area',
-         'aggregation_stack_area', 'aggregation_clean_area', 'clear_lines']
+         'aggregation_stack_area', 'bumpiness', 'clear_lines']
 #        , 'blocked_lines', 'num_stack_area',
 #         'enemy_blocked_lines']
 
@@ -52,6 +53,7 @@ class DNA:
         self.engine = engine
         self.fitness = 0.0
         self.prob = 0.0
+        self.cleared_lines = 0
 
     def __str__(self):
         dna_values = self.dict_genes.values()
@@ -78,7 +80,7 @@ class DNA:
         total_score = 0
         num_games = 3
         for i in range(num_games):
-            state = engine.clear()
+            engine.clear()
             cl = 0
             score = 0
             for t in count():
@@ -89,17 +91,19 @@ class DNA:
                 state, reward, done, cleared_lines = engine.step_to_final(actions_name)
                 # Perform one step of the optimization (on the target network)
                 cl += cleared_lines
-                score += reward
-                # print(engine)
+                score += (cleared_lines**2) * 100 + 1
                 if done:
                     # Evaluate this DNA
-                    total_score = cl * 10 + 3
+                    total_score += score
+                    if cl > self.cleared_lines:
+                        self.cleared_lines = cl
+                    # print(score)
                     break
         self.fitness = int(total_score / num_games)
 
     def make_sexy_baby(self, parent2):
         baby = DNA(self.mutation_rate, self.engine)
-        split_point = int(len(genes)/2)
+        split_point = random.randint(0, len(genes)-1)
 
         # Crossover
         for i in range(len(genes)):
@@ -193,6 +197,7 @@ class GeneticAlgorithm:
         self.population.calc_fitness_prob()
         print("Generation ", self.population.current_generation)
         print("Max fitness: ", self.population.max_fitness)
+        print("Max lines cleared from best: ", self.population.best.cleared_lines)
         print("Best child: ", self.population.best)
         print("Average fitness: ", self.population.get_avg_fitness())
         self.population.print_diversity()
@@ -201,12 +206,35 @@ class GeneticAlgorithm:
             self.population.calc_fitness_prob()
             print("Generation ", self.population.current_generation)
             print("Max fitness: ", self.population.max_fitness)
+            print("Max lines cleared from best: ", self.population.best.cleared_lines)
             print("Best child: ", self.population.best)
             print("Average fitness: ", self.population.get_avg_fitness())
             self.population.print_diversity()
+            time.sleep(5)
+            play_game_with_gen(self.population.best.dict_genes, self.engine)
+
+
+def play_game_with_gen(dict_genes, engine):
+    engine.clear()
+    cl = 0
+    for t in count():
+        actions_name, placement, actions = genetic_agent.select_action(
+            engine, engine.shape, engine.anchor, engine.board, dict_genes)
+        # Observations
+        state, reward, done, cleared_lines = engine.step_to_final(actions_name)
+        # Perform one step of the optimization (on the target network)
+        cl += cleared_lines
+        print(engine)
+        print("Cleared lines: ", cl)
+        time.sleep(.1)
+        if done:
+            break
+    print("")
+    print("")
+    print("")
 
 
 if __name__ == '__main__':
     engine = TetrisEngine(width, height, enable_KO=False)
-    darwin = GeneticAlgorithm(100, 0.01, 100, engine)
+    darwin = GeneticAlgorithm(50, 0.05, 10, engine)
     darwin.evolve_the_beasts()
