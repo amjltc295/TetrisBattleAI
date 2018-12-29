@@ -1,6 +1,14 @@
 import numpy as np
 from genetic_heuristic import gen_heuristic
 
+best_dict_genes = {'holes_stack_area': -0.8461356563843694,
+                   'holes_clean_area': -0.4615721400388464,
+                   'height_stack_area': 0.06473160638588638,
+                   'height_clean_area': -0.14280823125594533,
+                   'aggregation_stack_area': 0.0801835665088445,
+                   'bumpiness': -0.37476627592742084,
+                   'clear_lines': 0.8648134249140578}
+
 
 class GeneticPolicyAgent:
     def __int__(self):
@@ -12,7 +20,7 @@ class GeneticPolicyAgent:
         action = self.current_actions.pop(0)
         return action
 
-    def select_action(self, engine, shape, anchor, board, dict_genes):
+    def select_action(self, engine, shape, anchor, board, dict_genes=best_dict_genes):
         # All possible final states
         actions_name_final_location_map = engine.get_valid_final_states(shape, anchor, board)
         # act_pairs = (dict_key, final_board, actions)

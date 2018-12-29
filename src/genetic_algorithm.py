@@ -7,8 +7,6 @@ from genetic_policy_agent import GeneticPolicyAgent
 
 genes = ['holes_stack_area', 'holes_clean_area', 'height_stack_area', 'height_clean_area',
          'aggregation_stack_area', 'bumpiness', 'clear_lines']
-#        , 'blocked_lines', 'num_stack_area',
-#         'enemy_blocked_lines']
 
 init_random_value = 1.0
 
@@ -92,12 +90,11 @@ class DNA:
                 # Perform one step of the optimization (on the target network)
                 cl += cleared_lines
                 score += (cleared_lines**2) * 100 + 1
-                if done:
+                if done or cleared_lines > 500:
                     # Evaluate this DNA
                     total_score += score
                     if cl > self.cleared_lines:
                         self.cleared_lines = cl
-                    # print(score)
                     break
         self.fitness = int(total_score / num_games)
 
@@ -210,8 +207,8 @@ class GeneticAlgorithm:
             print("Best child: ", self.population.best)
             print("Average fitness: ", self.population.get_avg_fitness())
             self.population.print_diversity()
-            time.sleep(5)
-            play_game_with_gen(self.population.best.dict_genes, self.engine)
+        time.sleep(5)
+        play_game_with_gen(self.population.best.dict_genes, self.engine)
 
 
 def play_game_with_gen(dict_genes, engine):
@@ -236,5 +233,5 @@ def play_game_with_gen(dict_genes, engine):
 
 if __name__ == '__main__':
     engine = TetrisEngine(width, height, enable_KO=False)
-    darwin = GeneticAlgorithm(50, 0.05, 10, engine)
+    darwin = GeneticAlgorithm(population_size=50, mutation_rate=0.05, num_generations=10, engine=engine)
     darwin.evolve_the_beasts()

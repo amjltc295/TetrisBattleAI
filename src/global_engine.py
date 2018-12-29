@@ -7,7 +7,10 @@ import sys
 from engine import TetrisEngine
 from gui.gui import GUI
 import fixed_policy_agent
+from genetic_policy_agent import GeneticPolicyAgent
 from logging_config import logger
+
+gen_agent = GeneticPolicyAgent()
 
 
 def parse_args():
@@ -52,9 +55,9 @@ class GlobalEngine:
         self.players = {}
         for i in range(player_num):
             if i == 0:
-                self.players[i] = 'keyboard'
-            else:
                 self.players[i] = 'fixed_policy_agent'
+            else:
+                self.players[i] = 'genetic_policy_agent'
             self.engines[i] = TetrisEngine(width, height)
             self.engines[i].clear()
 
@@ -127,11 +130,19 @@ class GlobalEngine:
             return self.get_action_from_keyboard()
         elif playert_type == 'fixed_policy_agent':
             return self.get_action_from_fixed_policy_agent(self.engines[engine_idx])
+        elif playert_type == 'genetic_policy_agent':
+            return self.get_action_from_genetic_policy_agent(self.engines[engine_idx])
         else:
             raise NotImplementedError(f"Player type {playert_type} not exists")
 
     def get_action_from_fixed_policy_agent(self, engine):
         action = fixed_policy_agent.agent.get_action(
+            engine, engine.shape, engine.anchor, engine.board
+        )
+        return action
+
+    def get_action_from_genetic_policy_agent(self, engine):
+        action = gen_agent.get_action(
             engine, engine.shape, engine.anchor, engine.board
         )
         return action
