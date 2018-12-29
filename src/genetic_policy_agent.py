@@ -11,7 +11,7 @@ best_dict_genes = {'holes_stack_area': -0.8461356563843694,
 
 
 class GeneticPolicyAgent:
-    def __int__(self):
+    def __init__(self):
         self.current_actions = []
 
     def get_action(self, engine, shape, anchor, board):
