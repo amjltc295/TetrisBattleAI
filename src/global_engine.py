@@ -168,8 +168,12 @@ class GlobalEngine:
             game_over = self.update_engines()
 
         self.compare_score()
-        logger.info(f"Winner: {self.winner}")
-        logger.info(f"States: {self.engine_states}")
+        if not self.use_gui:
+            self.stdscr.addstr(f'Game Over, winner: {self.winner}, States: {self.engine_states}')
+        else:
+            logger.info(f"Winner: {self.winner}")
+            logger.info(f"States: {self.engine_states}")
+        self.get_action_from_keyboard()
         self.tear_down(None, None)
 
         return self.dbs
@@ -200,6 +204,8 @@ class GlobalEngine:
                 self.stdscr.addstr(str(engine))
                 self.stdscr.addstr(f'reward: {self.engine_states[idx]}\n')
             self.stdscr.addstr(f'Time: {time.time() - self.start_time:.1f}\n')
+            self.stdscr.refresh()
+            time.sleep(0.1)
 
     def set_engine_state(self, idx, engine, reward, cleared_lines):
         self.engine_states[idx]['garbage_lines'] = engine.garbage_lines
@@ -228,4 +234,4 @@ if __name__ == '__main__':
         dbs = global_engine.play_game()
     except Exception as err:
         logger.error(err, exc_info=True)
-        global_engine.tear_down()
+        global_engine.tear_down(None, None)
