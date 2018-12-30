@@ -207,6 +207,9 @@ class GeneticAlgorithm:
             print("Best child: ", self.population.best)
             print("Average fitness: ", self.population.get_avg_fitness())
             self.population.print_diversity()
+        fh = open("best_genes.txt", "a")
+        fh.write(str(self.population.best.dict_genes))
+        fh.close()
         time.sleep(5)
         play_game_with_gen(self.population.best.dict_genes, self.engine)
 

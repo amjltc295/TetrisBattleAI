@@ -100,6 +100,13 @@ def rect_func(x, boarder=16):
         return -x
 
 
+def pyr_func(x, peak=15):
+    if x <= peak:
+        return x
+    else:
+        return -2*x + 45
+
+
 def gen_heuristic(state, dict_genes):
     holes_value = dict_genes['holes_stack_area'] * (get_hole_stack_area(state)**2) + \
                   dict_genes['holes_clean_area'] * (get_hole_clean_area(state)**2)
