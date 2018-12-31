@@ -7,14 +7,19 @@ import sys
 from engine import TetrisEngine
 from gui.gui import GUI
 import fixed_policy_agent
+from genetic_policy_agent import GeneticPolicyAgent
 from logging_config import logger
+
+gen_agent = GeneticPolicyAgent()
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-ww', '--width', type=int, default=10, help='Window width')
     parser.add_argument('-hh', '--height', type=int, default=16, help='Window height')
-    parser.add_argument('-n', '--player_num', type=int, default=2, help='Number of players')
+    parser.add_argument('-p', '--player_num', type=int, default=2, help='Number of players')
+    parser.add_argument('-n', '--game_num', type=int, default=10, help='Number of games')
+    parser.add_argument('-k', '--KO_num_to_win', type=int, default=5, help='Number of KO to win a game')
     parser.add_argument('-b', '--block_size', type=int, default=30, help='Set block size to enlarge GUI')
     parser.add_argument('-g', '--use_gui', type=int, default=0, help='Active output to gui')
     args = parser.parse_args()
@@ -24,14 +29,13 @@ def parse_args():
 class GlobalEngine:
     def __init__(
         self, width, height, player_num, use_gui, block_size,
-        game_time=120, KO_num_to_win=5
+        KO_num_to_win, game_num, game_time=120,
     ):
         self.width = width
         self.height = height
         self.player_num = player_num
         self.game_time = game_time
         self.KO_num_to_win = KO_num_to_win
-        self.winner = None
 
         # For GUI use
         self.gui = None
@@ -49,20 +53,23 @@ class GlobalEngine:
             ord('f'): "hold"   # Hold
         }
         self.engines = {}
+        self.win_times = {}
         self.players = {}
         for i in range(player_num):
             if i == 0:
-                self.players[i] = 'keyboard'
-            else:
                 self.players[i] = 'fixed_policy_agent'
-            self.engines[i] = TetrisEngine(width, height)
-            self.engines[i].clear()
+            else:
+                self.players[i] = 'genetic_policy_agent'
+            self.win_times[i] = 0
 
-        self.global_state = {}
         self.engine_states = {}
+        self.game_count = 0
 
     def setup(self):
         # Initialization
+        for i in range(self.player_num):
+            self.engines[i] = TetrisEngine(self.width, self.height)
+            self.engines[i].clear()
         if self.use_gui:
             gui = GUI(self, self.block_size)
             self.gui = gui
@@ -77,8 +84,6 @@ class GlobalEngine:
 
         for i in range(self.player_num):
             # Initial rendering
-            if not self.use_gui:
-                self.stdscr.addstr(str(self.engines[i]))
             self.engine_states[i] = {
                 "KO": 0,
                 "reward": 0,
@@ -92,6 +97,7 @@ class GlobalEngine:
             # Initialize dbs
             self.dbs[i] = []
 
+        self.game_count += 1
         self.start_time = time.time()
 
     def keyboard_control(self, key):
@@ -118,8 +124,9 @@ class GlobalEngine:
         for idx, engine in self.engines.items():
             score = self.engine_states[idx]['KO'] * 10000 + self.engine_states[idx]['lines_sent']
             if score > max_score:
-                self.winner = idx
+                winner = idx
                 max_score = score
+        return winner, max_score
 
     def get_action(self, engine_idx):
         playert_type = self.players[engine_idx]
@@ -127,11 +134,19 @@ class GlobalEngine:
             return self.get_action_from_keyboard()
         elif playert_type == 'fixed_policy_agent':
             return self.get_action_from_fixed_policy_agent(self.engines[engine_idx])
+        elif playert_type == 'genetic_policy_agent':
+            return self.get_action_from_genetic_policy_agent(self.engines[engine_idx])
         else:
             raise NotImplementedError(f"Player type {playert_type} not exists")
 
     def get_action_from_fixed_policy_agent(self, engine):
         action = fixed_policy_agent.agent.get_action(
+            engine, engine.shape, engine.anchor, engine.board
+        )
+        return action
+
+    def get_action_from_genetic_policy_agent(self, engine):
+        action = gen_agent.get_action(
             engine, engine.shape, engine.anchor, engine.board
         )
         return action
@@ -156,12 +171,16 @@ class GlobalEngine:
             self.update_screen()
             game_over = self.update_engines()
 
-        self.compare_score()
-        logger.info(f"Winner: {self.winner}")
-        logger.info(f"States: {self.engine_states}")
-        self.tear_down(None, None)
+        winner, max_score = self.compare_score()
+        self.win_times[winner] += 1
+        if not self.use_gui:
+            self.stdscr.clear()
+            self.stdscr.addstr(f'Game Over, winner: {winner}, States: {self.engine_states}\n')
+        else:
+            logger.info(f"Winner: {winner}")
+            logger.info(f"States: {self.engine_states}")
 
-        return self.dbs
+        return self.dbs, winner
 
     def update_engines(self):
         game_over = False
@@ -185,10 +204,13 @@ class GlobalEngine:
             self.gui.update_screen()
         else:
             self.stdscr.clear()
+            self.stdscr.addstr(f"Game {self.game_count}, Win times: {self.win_times}\n")
             for idx, engine in self.engines.items():
                 self.stdscr.addstr(str(engine))
                 self.stdscr.addstr(f'reward: {self.engine_states[idx]}\n')
             self.stdscr.addstr(f'Time: {time.time() - self.start_time:.1f}\n')
+            self.stdscr.refresh()
+            time.sleep(0.05)
 
     def set_engine_state(self, idx, engine, reward, cleared_lines):
         self.engine_states[idx]['garbage_lines'] = engine.garbage_lines
@@ -211,10 +233,16 @@ if __name__ == '__main__':
     args = parse_args()
     global_engine = GlobalEngine(
         args.width, args.height, args.player_num, args.use_gui, args.block_size,
+        args.KO_num_to_win, args.game_num
     )
     signal.signal(signal.SIGINT, global_engine.tear_down)
-    try:
-        dbs = global_engine.play_game()
-    except Exception as err:
-        logger.error(err, exc_info=True)
-        global_engine.tear_down()
+    for i in range(args.game_num):
+        dbs, winner = global_engine.play_game()
+    if not args.use_gui:
+        global_engine.stdscr.clear()
+        global_engine.stdscr.addstr(f"\n------------------------------------------------\n")
+        global_engine.stdscr.addstr(f"{global_engine.game_count} games done, Win times: {global_engine.win_times}\n")
+    else:
+        logger.info(f"{global_engine.game_count} games done, Win times: {global_engine.win_times}\n")
+    global_engine.get_action_from_keyboard()
+    global_engine.tear_down(None, None)
