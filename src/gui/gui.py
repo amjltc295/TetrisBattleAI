@@ -76,6 +76,7 @@ class GUI:
         self.start = True
         self.game_over = False
         self.done = False
+        self.pressed_key = None
 
         self.block_size = block_size
 
@@ -252,8 +253,10 @@ class GUI:
             events = pygame.event.get()
             for event in reversed(events):
                 if event.type == pygame.KEYDOWN:
-                    key_pressed = event.key
-                    return key_pressed
+                    self.pressed_key = event.key
+                elif event.type == pygame.KEYUP:
+                    self.pressed_key = None
+                return self.pressed_key
 
         # Game over screen
         elif self.game_over:
