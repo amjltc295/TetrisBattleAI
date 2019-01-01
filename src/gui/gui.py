@@ -13,6 +13,11 @@ DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 pygame.init()
 
 
+def get_brighter_color(color, factor=1.2):
+    brighter_color = tuple([int(x * factor) if int(x * factor) < 255 else 255 for x in color])
+    return brighter_color
+
+
 class UIVariables:
     framerate = 50  # Bigger -> Slower
     shape_names = ['T', 'J', 'L', 'Z', 'S', 'I', 'O']
@@ -24,6 +29,7 @@ class UIVariables:
 
     h1 = pygame.font.Font(font_path, 50)
     h2 = pygame.font.Font(font_path, 30)
+    h3 = pygame.font.Font(font_path, 25)
     h4 = pygame.font.Font(font_path, 20)
     h5 = pygame.font.Font(font_path, 13)
     h6 = pygame.font.Font(font_path, 10)
@@ -37,31 +43,32 @@ class UIVariables:
     # Background colors
     black = (10, 10, 10)     # rgb(10, 10, 10)
     white = (255, 255, 255)  # rgb(255, 255, 255)
-    grey_1 = (26, 26, 26)    # rgb(26, 26, 26)
-    grey_2 = (35, 35, 35)    # rgb(35, 35, 35)
-    grey_3 = (55, 55, 55)    # rgb(55, 55, 55)
-    grey_4 = (75, 75, 75)
+    background = (200, 255, 200)
+    grey_garbage = (119, 120, 115)
+    grey_game_background = (75, 75, 75)
+    grey_boarder = (26, 26, 26)
+    grey_board = (35, 35, 35)
 
     # Tetrimino colors
-    cyan = (69, 206, 204)    # rgb(69, 206, 204) # I
-    blue = (64, 111, 249)    # rgb(64, 111, 249) # J
-    orange = (253, 189, 53)  # rgb(253, 189, 53) # L
-    yellow = (246, 227, 90)  # rgb(246, 227, 90) # O
-    green = (98, 190, 68)    # rgb(98, 190, 68) # S
-    pink = (242, 64, 235)    # rgb(242, 64, 235) # T
-    red = (225, 13, 27)      # rgb(225, 13, 27) # Z
+    cyan = (11, 160, 228)    # I
+    blue = (33, 68, 198)     # J
+    orange = (216, 93, 13)   # L
+    yellow = (224, 154, 0)   # O
+    green = (89, 175, 16)    # S
+    pink = (185, 32, 138)    # T
+    red = (200, 15, 46)      # Z
 
     t_color = {
-        -2: grey_4,
-        -1: grey_3,
-        0: grey_2,
-        1: cyan,
+        -2: grey_game_background,
+        -1: grey_garbage,
+        0: grey_board,
+        1: pink,
         2: blue,
         3: orange,
-        4: yellow,
+        4: red,
         5: green,
-        6: pink,
-        7: red,
+        6: cyan,
+        7: yellow,
     }
 
 
@@ -94,9 +101,24 @@ class GUI:
             color,
             pygame.Rect(x, y, self.block_size, self.block_size)
         )
+        inner_pad = self.block_size // 7
         pygame.draw.rect(
             self.screen,
-            UIVariables.grey_1,
+            get_brighter_color(color),
+            pygame.Rect(x+inner_pad, y+inner_pad, self.block_size-inner_pad*2, self.block_size-inner_pad*2),
+            inner_pad
+        )
+        r, g, b = color
+        if not (r == g and g == b):
+            pygame.draw.rect(
+                self.screen,
+                get_brighter_color(color, 2),
+                pygame.Rect(x+1, y+1, 3, 3),
+                3
+            )
+        pygame.draw.rect(
+            self.screen,
+            UIVariables.grey_boarder,
             pygame.Rect(x, y, self.block_size, self.block_size),
             1
         )
@@ -121,16 +143,16 @@ class GUI:
         )
 
         # Draw texts
-        text_player = UIVariables.h2.render(
+        text_player = UIVariables.h3.render(
             f"P{player_id+1}: {self.global_state.players[player_id]}", 1, UIVariables.black)
         text_hold = UIVariables.h5.render("HOLD", 1, UIVariables.black)
         text_next = UIVariables.h5.render("NEXT", 1, UIVariables.black)
 
         # Place texts
-        pad = 45
-        self.screen.blit(text_player, (x_start + 4 * self.block_size + 50, y_start + 10))
-        self.screen.blit(text_hold, (x_start + 15, y_start + pad))
-        self.screen.blit(text_next, (x_start + 15, y_start + pad + 5 * self.block_size))
+        pad = 35
+        self.screen.blit(text_player, (x_start + 5 * self.block_size + 10, y_start + 20))
+        self.screen.blit(text_hold, (x_start + 15, y_start + pad + 5))
+        self.screen.blit(text_next, (x_start + 15, y_start + pad + 5 + 5 * self.block_size))
         texts = [
             "K.O.",
             f"  {self.global_state.engine_states[player_id]['KO']}",
@@ -146,10 +168,16 @@ class GUI:
                 text_render = UIVariables.h5.render(text, 1, UIVariables.black)
             else:
                 text_render = UIVariables.h4.render(text, 1, UIVariables.black)
-            self.screen.blit(text_render, (x_start + 15, y_start + 30 + 10 * self.block_size + i * pad - (i % 2) * 20))
+            self.screen.blit(
+                text_render, (x_start + 15, y_start + 20 + 10 * self.block_size + (i+1) * pad - (i % 2) * 20))
 
     # Draw next mino for one player
     def _draw_next_mino(self, x_start, y_start, player_id):
+        pygame.draw.rect(
+            self.screen,
+            UIVariables.black,
+            pygame.Rect(x_start + 20, y_start + 65 + 5 * self.block_size, self.block_size * 4, self.block_size * 4),
+        )
         next_mino_name = self.global_state.engines[player_id].next_shape_name
         next_mino = UIVariables.shape_names.index(next_mino_name)
         grid_n = Tetrimino.mino_map[next_mino][0]
@@ -158,14 +186,15 @@ class GUI:
                 dx = x_start + 20 + self.block_size * j
                 dy = y_start + 60 + 5 * self.block_size + self.block_size + self.block_size * i
                 if grid_n[i][j] != 0:
-                    pygame.draw.rect(
-                        self.screen,
-                        UIVariables.t_color[grid_n[i][j]],
-                        pygame.Rect(dx, dy, self.block_size, self.block_size)
-                    )
+                    self._draw_block(dx, dy, UIVariables.t_color[grid_n[i][j]])
 
     # Draw hold mino for one player
     def _draw_hold_mino(self, x_start, y_start, player_id):
+        pygame.draw.rect(
+            self.screen,
+            UIVariables.black,
+            pygame.Rect(x_start + 20, y_start + 65, self.block_size * 4, self.block_size * 4),
+        )
         hold_mino_name = self.global_state.engines[player_id].hold_shape_name
         if hold_mino_name is not None:
             hold_mino = UIVariables.shape_names.index(hold_mino_name)
@@ -175,11 +204,7 @@ class GUI:
                     dx = x_start + 20 + self.block_size * j
                     dy = y_start + 60 + self.block_size + self.block_size * i
                     if grid_h[i][j] != 0:
-                        pygame.draw.rect(
-                            self.screen,
-                            UIVariables.t_color[grid_h[i][j]],
-                            pygame.Rect(dx, dy, self.block_size, self.block_size)
-                        )
+                        self._draw_block(dx, dy, UIVariables.t_color[grid_h[i][j]])
 
     # Draw game screen of one player
     def _draw_one_screen(self, x_start, y_start, player_id):
@@ -198,7 +223,7 @@ class GUI:
     # Render all players screen
     def _draw_all_screen(self):
         # Background gray
-        self.screen.fill(UIVariables.grey_1)
+        self.screen.fill(UIVariables.black)
 
         if self.global_state.player_num > 4:
             print("Max player number 4")

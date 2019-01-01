@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-from engine import TetrisEngine
-from heuristic import heuristic_fn, complete_line
 from itertools import count
 import numpy as np
 
+from engine import TetrisEngine, board_to_bool
+from heuristic import heuristic_fn, complete_line
 
 width, height = 10, 20  # standard tetris friends rules
 engine = TetrisEngine(width, height, enable_KO=False)
@@ -22,7 +22,7 @@ class FixedPolicyAgent:
     def select_action(self, engine, shape, anchor, board):
         actions_name_final_location_map = engine.get_valid_final_states(shape, anchor, board)
         act_pairs = [(k, v[2], v[3]) for k, v in actions_name_final_location_map.items()]
-        placements = [p for k, p, actions in act_pairs]
+        placements = [board_to_bool(p) for k, p, actions in act_pairs]
         h_score = [heuristic_fn(s, complete_line(s)) for s in placements]
         act_idx = np.argmax(h_score)
         actions_name, final_placement, actions = act_pairs[act_idx]
