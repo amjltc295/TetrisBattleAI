@@ -74,18 +74,18 @@ def combo_to_line_sent(combo):
         -1: 0,
         0: 0,
         1: 1,
-        2: 2,
-        3: 4,
-        4: 6,
-        5: 9,
-        6: 12,
-        7: 16,
+        2: 1,
+        3: 2,
+        4: 2,
+        5: 3,
+        6: 3,
+        7: 4,
     }
 
     if combo <= 7:
         return combo_line_sent_map[combo]
     else:
-        return (combo - 7) * 4 + 16
+        return 4
 
 
 class TetrisEngine:
