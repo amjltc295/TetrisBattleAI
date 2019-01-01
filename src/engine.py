@@ -384,7 +384,7 @@ class TetrisEngine:
         return action_state_dict
 
     def get_board(self):
-        board = self.set_piece(self.shape, self.anchor, self.board, True)
         shape, anchor = hard_drop(self.shape, self.anchor, self.board)
-        board = self.set_piece(shape, anchor, board, -2)
+        hard_dropped_board = self.set_piece(shape, anchor, self.board, -2)
+        board = self.set_piece(self.shape, self.anchor, hard_dropped_board, True)
         return board
