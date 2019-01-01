@@ -79,7 +79,7 @@ class GlobalEngine:
                 self.players[i] = 'fixed_policy_agent'
             else:
                 self.players[i] = 'genetic_policy_agent'
-                # self.players[i] = 'keyboard'
+                self.players[i] = 'keyboard'
             self.win_times[i] = 0
 
         self.engine_states = {}
@@ -227,6 +227,7 @@ class GlobalEngine:
     def update_screen(self):
         if self.use_gui:
             self.gui.update_screen()
+            time.sleep(0.2)
         else:
             self.stdscr.clear()
             self.stdscr.addstr(f"Game {self.game_count}, Win times: {self.win_times}\n")
@@ -240,6 +241,7 @@ class GlobalEngine:
     def set_engine_state(self, idx, engine, reward, cleared_lines, dropped):
         if cleared_lines > 0:
             self.engine_states[idx]['combo'] += cleared_lines
+            self.engine_states[idx]['lines_sent'] += combo_to_line_sent(self.engine_states[idx]['combo'])
         elif dropped:
             self.engine_states[idx]['combo'] = -1
 
@@ -252,7 +254,6 @@ class GlobalEngine:
         self.engine_states[idx]['next_shape_name'] = engine.next_shape_name
         self.engine_states[idx]['reward'] += reward
         self.engine_states[idx]['lines_cleared'] += cleared_lines
-        self.engine_states[idx]['lines_sent'] += combo_to_line_sent(self.engine_states[idx]['combo'])
 
     def tear_down(self, sig, frame):
         if not self.use_gui:

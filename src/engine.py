@@ -247,12 +247,10 @@ class TetrisEngine:
         return new_board
 
     def __repr__(self):
-        shape, anchor = hard_drop(self.shape, self.anchor, self.board)
-        self.board = self.set_piece(self.shape, self.anchor, self.board, True)
-        self.board = self.set_piece(shape, anchor, self.board, -2)
+        board = self.get_board()
         s = f"Hold: {self.hold_shape_name}  Next: {self.next_shape_name}\n"
         s += 'o' + '-' * self.width + 'o'
-        for line in self.board.T[1:]:
+        for line in board.T[1:]:
             display_line = ['\n|']
             for grid in line:
                 if grid == -1:
@@ -267,8 +265,6 @@ class TetrisEngine:
             s += "".join(display_line)
 
         s += '\no' + '-' * self.width + 'o\n'
-        self.board = self.set_piece(shape, anchor, self.board, False)
-        self.board = self.set_piece(self.shape, self.anchor, self.board, False)
         return s
 
     def receive_garbage_lines(self, garbage_lines):
@@ -371,6 +367,7 @@ class TetrisEngine:
         return action_state_dict
 
     def get_board(self):
-        board = deepcopy(self.board)
         board = self.set_piece(self.shape, self.anchor, self.board, True)
+        shape, anchor = hard_drop(self.shape, self.anchor, self.board)
+        board = self.set_piece(shape, anchor, board, -2)
         return board
