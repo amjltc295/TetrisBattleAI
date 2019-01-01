@@ -19,7 +19,9 @@ def parse_args():
     parser.add_argument('-hh', '--height', type=int, default=16, help='Window height')
     parser.add_argument('-p', '--player_num', type=int, default=2, help='Number of players')
     parser.add_argument('-n', '--game_num', type=int, default=10, help='Number of games')
-    parser.add_argument('-k', '--KO_num_to_win', type=int, default=5, help='Number of KO to win a game')
+    parser.add_argument('-kn', '--KO_num_to_win', type=int, default=5, help='Number of KO to win a game')
+    parser.add_argument('-k', '--use_keyboard', default=False, action='store_true',
+                        help='Use keyboard input (if not, use GA instead)')
     parser.add_argument('-b', '--block_size', type=int, default=30, help='Set block size to enlarge GUI')
     parser.add_argument('-g', '--use_gui', type=int, default=0, help='Active output to gui')
     args = parser.parse_args()
@@ -28,7 +30,8 @@ def parse_args():
 
 class GlobalEngine:
     def __init__(
-        self, width, height, player_num, use_gui, block_size,
+        self, width, height, player_num, use_gui, use_keyboard,
+        block_size,
         KO_num_to_win, game_num, game_time=120,
     ):
         self.width = width
@@ -42,6 +45,8 @@ class GlobalEngine:
         self.block_size = block_size
         self.use_gui = use_gui
         self.pause = False
+
+        self.use_keyboard = use_keyboard
 
         self.key_action_map = {
             ord('a'): "move_left",  # Shift left
@@ -57,10 +62,12 @@ class GlobalEngine:
         self.players = {}
         for i in range(player_num):
             if i == 0:
-                self.players[i] = 'fixed_policy_agent'
+                if use_keyboard:
+                    self.players[i] = 'keyboard'
+                else:
+                    self.players[i] = 'genetic_policy_agent'
             else:
-                self.players[i] = 'genetic_policy_agent'
-                self.players[i] = 'keyboard'
+                self.players[i] = 'fixed_policy_agent'
             self.win_times[i] = 0
 
         self.engine_states = {}
@@ -205,7 +212,7 @@ class GlobalEngine:
     def update_screen(self):
         if self.use_gui:
             self.gui.update_screen()
-            time.sleep(0.2)
+            time.sleep(0.1)
         else:
             self.stdscr.clear()
             self.stdscr.addstr(f"Game {self.game_count}, Win times: {self.win_times}\n")
@@ -238,7 +245,9 @@ class GlobalEngine:
 if __name__ == '__main__':
     args = parse_args()
     global_engine = GlobalEngine(
-        args.width, args.height, args.player_num, args.use_gui, args.block_size,
+        args.width, args.height, args.player_num,
+        args.use_gui, args.use_keyboard,
+        args.block_size,
         args.KO_num_to_win, args.game_num
     )
     signal.signal(signal.SIGINT, global_engine.tear_down)
