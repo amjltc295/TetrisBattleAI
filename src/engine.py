@@ -169,6 +169,7 @@ class TetrisEngine:
         # Drop each step_num_to_drop step
         cleared_lines = 0
         game_over = False
+        dropped = False
         if self.drop_count == self.step_num_to_drop or action == "hard_drop":
             self.drop_count = 0
             if action != "soft_drop":
@@ -177,6 +178,7 @@ class TetrisEngine:
                 cleared_lines, KOed, game_over = self._handle_dropped()
                 reward += cleared_lines * 10
                 reward -= (KOed if self.enable_KO else game_over) * 100
+                dropped = True
 
         # Update time and reward
         self.time += 1
@@ -185,7 +187,7 @@ class TetrisEngine:
         state = self.get_board()
         if not game_over:
             game_over = self._update_states()
-        return state, reward, game_over, cleared_lines
+        return state, reward, game_over, cleared_lines, dropped
 
     def _handle_dropped(self):
         self.board = self.set_piece(self.shape, self.anchor, self.board, True)
@@ -245,15 +247,18 @@ class TetrisEngine:
         return new_board
 
     def __repr__(self):
+        shape, anchor = hard_drop(self.shape, self.anchor, self.board)
         self.board = self.set_piece(self.shape, self.anchor, self.board, True)
-        s = f"Hold: {self.hold_shape_name}\n"
-        s += f"Next: {self.next_shape_name}\n"
+        self.board = self.set_piece(shape, anchor, self.board, -2)
+        s = f"Hold: {self.hold_shape_name}  Next: {self.next_shape_name}\n"
         s += 'o' + '-' * self.width + 'o'
         for line in self.board.T[1:]:
             display_line = ['\n|']
             for grid in line:
                 if grid == -1:
                     display_line.append('X')
+                elif grid == -2:
+                    display_line.append('V')
                 elif grid:
                     display_line.append('O')
                 else:
@@ -262,6 +267,7 @@ class TetrisEngine:
             s += "".join(display_line)
 
         s += '\no' + '-' * self.width + 'o\n'
+        self.board = self.set_piece(shape, anchor, self.board, False)
         self.board = self.set_piece(self.shape, self.anchor, self.board, False)
         return s
 

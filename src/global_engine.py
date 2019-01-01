@@ -13,6 +13,25 @@ from logging_config import logger
 gen_agent = GeneticPolicyAgent()
 
 
+def combo_to_line_sent(combo):
+    combo_line_sent_map = {
+        -1: 0,
+        0: 0,
+        1: 1,
+        2: 2,
+        3: 4,
+        4: 6,
+        5: 9,
+        6: 12,
+        7: 16,
+    }
+
+    if combo <= 7:
+        return combo_line_sent_map[combo]
+    else:
+        return (combo - 7) * 4 + 16
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-ww', '--width', type=int, default=10, help='Window width')
@@ -60,6 +79,7 @@ class GlobalEngine:
                 self.players[i] = 'fixed_policy_agent'
             else:
                 self.players[i] = 'genetic_policy_agent'
+                # self.players[i] = 'keyboard'
             self.win_times[i] = 0
 
         self.engine_states = {}
@@ -88,11 +108,13 @@ class GlobalEngine:
                 "KO": 0,
                 "reward": 0,
                 "lines_sent": 0,
+                "lines_cleared": 0,
                 "hold_shape": None,
                 "hold_shape_name": None,
                 "hold_locked": False,
                 "garbage_lines": 0,
-                "highest_line": 0
+                "highest_line": 0,
+                "combo": -1
             }
             # Initialize dbs
             self.dbs[i] = []
@@ -107,15 +129,18 @@ class GlobalEngine:
             action = 'idle'
         return action
 
-    def sent_lines(self, idx, cleared_lines):
+    def send_lines(self, idx, cleared_lines):
+        if cleared_lines == 0:
+            return
+        lines_to_send = combo_to_line_sent(self.engine_states[idx]['combo'])
         for other_idx, other_engine in self.engines.items():
             if other_idx != idx:
-                other_engine.receive_garbage_lines(cleared_lines)
+                other_engine.receive_garbage_lines(lines_to_send)
 
                 # Get KO
                 if self.player_num == 2:
                     self.engine_states[idx]['KO'] = other_engine.n_deaths
-                elif cleared_lines > 0:
+                elif lines_to_send > 0:
                     if not other_engine.is_alive():
                         self.engine_states[idx]['KO'] += 1
 
@@ -188,11 +213,11 @@ class GlobalEngine:
             action = self.get_action(idx)
 
             # Game step
-            state, reward, self.done, cleared_lines = engine.step(action)
+            state, reward, self.done, cleared_lines, dropped = engine.step(action)
 
             # Update state
-            self.set_engine_state(idx, engine, reward, cleared_lines)
-            self.sent_lines(idx, cleared_lines)
+            self.set_engine_state(idx, engine, reward, cleared_lines, dropped)
+            self.send_lines(idx, cleared_lines)
             self.dbs[idx].append((state, reward, self.done, action))
 
             if self.engine_states[idx]['KO'] >= self.KO_num_to_win:
@@ -212,7 +237,12 @@ class GlobalEngine:
             self.stdscr.refresh()
             time.sleep(0.05)
 
-    def set_engine_state(self, idx, engine, reward, cleared_lines):
+    def set_engine_state(self, idx, engine, reward, cleared_lines, dropped):
+        if cleared_lines > 0:
+            self.engine_states[idx]['combo'] += cleared_lines
+        elif dropped:
+            self.engine_states[idx]['combo'] = -1
+
         self.engine_states[idx]['garbage_lines'] = engine.garbage_lines
         self.engine_states[idx]['highest_line'] = engine.highest_line
         self.engine_states[idx]['hold_locked'] = engine.hold_locked
@@ -221,7 +251,8 @@ class GlobalEngine:
         self.engine_states[idx]['shape_name'] = engine.shape_name
         self.engine_states[idx]['next_shape_name'] = engine.next_shape_name
         self.engine_states[idx]['reward'] += reward
-        self.engine_states[idx]['lines_sent'] += cleared_lines
+        self.engine_states[idx]['lines_cleared'] += cleared_lines
+        self.engine_states[idx]['lines_sent'] += combo_to_line_sent(self.engine_states[idx]['combo'])
 
     def tear_down(self, sig, frame):
         if not self.use_gui:
