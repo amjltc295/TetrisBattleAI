@@ -49,7 +49,7 @@ if __name__ == '__main__':
             # Select and perform an action
             actions_name, placement, actions = agent.select_action(engine, engine.shape, engine.anchor, engine.board)
             # Observations
-            state, reward, done, cleared_lines = engine.step_to_final(actions_name)
+            state, reward, done, cleared_lines, sent_lines = engine.step_to_final(actions_name)
             # Accumulate reward
             score += reward
             cl += cleared_lines

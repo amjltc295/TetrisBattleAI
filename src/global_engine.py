@@ -13,25 +13,6 @@ from logging_config import logger
 gen_agent = GeneticPolicyAgent()
 
 
-def combo_to_line_sent(combo):
-    combo_line_sent_map = {
-        -1: 0,
-        0: 0,
-        1: 1,
-        2: 2,
-        3: 4,
-        4: 6,
-        5: 9,
-        6: 12,
-        7: 16,
-    }
-
-    if combo <= 7:
-        return combo_line_sent_map[combo]
-    else:
-        return (combo - 7) * 4 + 16
-
-
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-ww', '--width', type=int, default=10, help='Window width')
@@ -129,10 +110,7 @@ class GlobalEngine:
             action = 'idle'
         return action
 
-    def send_lines(self, idx, cleared_lines):
-        if cleared_lines == 0:
-            return
-        lines_to_send = combo_to_line_sent(self.engine_states[idx]['combo'])
+    def send_lines(self, idx, lines_to_send):
         for other_idx, other_engine in self.engines.items():
             if other_idx != idx:
                 other_engine.receive_garbage_lines(lines_to_send)
@@ -213,11 +191,11 @@ class GlobalEngine:
             action = self.get_action(idx)
 
             # Game step
-            state, reward, self.done, cleared_lines, dropped = engine.step(action)
+            state, reward, self.done, cleared_lines, sent_lines = engine.step(action)
 
             # Update state
-            self.set_engine_state(idx, engine, reward, cleared_lines, dropped)
-            self.send_lines(idx, cleared_lines)
+            self.set_engine_state(idx, engine, reward)
+            self.send_lines(idx, sent_lines)
             self.dbs[idx].append((state, reward, self.done, action))
 
             if self.engine_states[idx]['KO'] >= self.KO_num_to_win:
@@ -238,13 +216,9 @@ class GlobalEngine:
             self.stdscr.refresh()
             time.sleep(0.05)
 
-    def set_engine_state(self, idx, engine, reward, cleared_lines, dropped):
-        if cleared_lines > 0:
-            self.engine_states[idx]['combo'] += cleared_lines
-            self.engine_states[idx]['lines_sent'] += combo_to_line_sent(self.engine_states[idx]['combo'])
-        elif dropped:
-            self.engine_states[idx]['combo'] = -1
-
+    def set_engine_state(self, idx, engine, reward):
+        self.engine_states[idx]['combo'] = engine.combo
+        self.engine_states[idx]['lines_sent'] = engine.total_sent_lines
         self.engine_states[idx]['garbage_lines'] = engine.garbage_lines
         self.engine_states[idx]['highest_line'] = engine.highest_line
         self.engine_states[idx]['hold_locked'] = engine.hold_locked
@@ -253,7 +227,7 @@ class GlobalEngine:
         self.engine_states[idx]['shape_name'] = engine.shape_name
         self.engine_states[idx]['next_shape_name'] = engine.next_shape_name
         self.engine_states[idx]['reward'] += reward
-        self.engine_states[idx]['lines_cleared'] += cleared_lines
+        self.engine_states[idx]['lines_cleared'] = engine.total_cleared_lines
 
     def tear_down(self, sig, frame):
         if not self.use_gui:

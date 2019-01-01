@@ -27,7 +27,7 @@ def run():
             act_prob, V = ac_agent.get_action_probability(model, state, act_pairs)
             act_idx = int(np.random.choice(len(act_prob), 1, p=act_prob.cpu().detach().numpy()))
             act, placement = act_pairs[act_idx]
-            state, reward, done, cleared_lines = engine.step_to_final(act)
+            state, reward, done, cleared_lines, sent_lines = engine.step_to_final(act)
             # Accumulate reward
             score += int(cleared_lines)
 
