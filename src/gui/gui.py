@@ -121,34 +121,32 @@ class GUI:
         )
 
         # Draw texts
-        text_player = UIVariables.h2.render("Player "+str(player_id+1), 1, UIVariables.black)
+        text_player = UIVariables.h2.render(
+            f"P{player_id+1}: {self.global_state.players[player_id]}", 1, UIVariables.black)
         text_hold = UIVariables.h5.render("HOLD", 1, UIVariables.black)
         text_next = UIVariables.h5.render("NEXT", 1, UIVariables.black)
-        text_combo = UIVariables.h5.render("Combo", 1, UIVariables.black)
-        combo_value = UIVariables.h4.render(str(self.global_state.engine_states[player_id]['combo']),
-                                            1, UIVariables.black)
-        text_lines_sent = UIVariables.h5.render("Lines sent", 1, UIVariables.black)
-        lines_sent_value = UIVariables.h4.render(str(self.global_state.engine_states[player_id]['lines_sent']),
-                                                 1, UIVariables.black)
-        text_lines_cleared = UIVariables.h5.render("Lines cleared", 1, UIVariables.black)
-        lines_cleared_value = UIVariables.h4.render(str(self.global_state.engine_states[player_id]['lines_cleared']),
-                                                    1, UIVariables.black)
-        text_ko = UIVariables.h5.render("KO's", 1, UIVariables.black)
-        ko_value = UIVariables.h4.render(str(self.global_state.engines[player_id].n_deaths),
-                                         1, UIVariables.black)
 
         # Place texts
-        self.screen.blit(text_player, (x_start + 4 * self.block_size + 120, y_start + 10))
-        self.screen.blit(text_hold, (x_start + 15, y_start + 60))
-        self.screen.blit(text_next, (x_start + 15, y_start + 60 + 5 * self.block_size))
-        self.screen.blit(text_combo, (x_start + 15, y_start + 60 + 10 * self.block_size))
-        self.screen.blit(combo_value, (x_start + 20, y_start + 60 + 10 * self.block_size + 16))
-        self.screen.blit(text_lines_sent, (x_start + 15, y_start + 60 + 10 * self.block_size + 60))
-        self.screen.blit(lines_sent_value, (x_start + 20, y_start + 60 + 10 * self.block_size + 76))
-        self.screen.blit(text_lines_cleared, (x_start + 15, y_start + 60 + 10 * self.block_size + 120))
-        self.screen.blit(lines_cleared_value, (x_start + 20, y_start + 60 + 10 * self.block_size + 136))
-        self.screen.blit(text_ko, (x_start + 15, y_start + 60 + 10 * self.block_size + 180))
-        self.screen.blit(ko_value, (x_start + 20, y_start + 60 + 10 * self.block_size + 196))
+        pad = 45
+        self.screen.blit(text_player, (x_start + 4 * self.block_size + 50, y_start + 10))
+        self.screen.blit(text_hold, (x_start + 15, y_start + pad))
+        self.screen.blit(text_next, (x_start + 15, y_start + pad + 5 * self.block_size))
+        texts = [
+            "K.O.",
+            f"  {self.global_state.engine_states[player_id]['KO']}",
+            "Combo",
+            f"  {self.global_state.engine_states[player_id]['combo']}",
+            "Lines sent",
+            f"  {self.global_state.engine_states[player_id]['lines_sent']}",
+            "Lines cleared",
+            f"  {self.global_state.engine_states[player_id]['lines_cleared']}"
+        ]
+        for i, text in enumerate(texts):
+            if i % 2 == 0:
+                text_render = UIVariables.h5.render(text, 1, UIVariables.black)
+            else:
+                text_render = UIVariables.h4.render(text, 1, UIVariables.black)
+            self.screen.blit(text_render, (x_start + 15, y_start + 30 + 10 * self.block_size + i * pad - (i % 2) * 20))
 
     # Draw next mino for one player
     def _draw_next_mino(self, x_start, y_start, player_id):

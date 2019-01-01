@@ -212,7 +212,6 @@ class GlobalEngine:
     def update_screen(self):
         if self.use_gui:
             self.gui.update_screen()
-            time.sleep(0.1)
         else:
             self.stdscr.clear()
             self.stdscr.addstr(f"Game {self.game_count}, Win times: {self.win_times}\n")
@@ -221,6 +220,7 @@ class GlobalEngine:
                 self.stdscr.addstr(f'reward: {self.engine_states[idx]}\n')
             self.stdscr.addstr(f'Time: {time.time() - self.start_time:.1f}\n')
             self.stdscr.refresh()
+        if self.use_keyboard:
             time.sleep(0.05)
 
     def set_engine_state(self, idx, engine, reward):
