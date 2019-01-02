@@ -171,7 +171,7 @@ if __name__ == '__main__':
             act, placement = act_pairs[act_idx]
 
             # Observations
-            state, reward, done, cleared_lines = engine.step_to_final(act)
+            state, reward, done, cleared_lines, sent_lines = engine.step_to_final(act)
             # for training purpose
             reward = cleared_lines**2 if not done else -100
             # Accumulate reward

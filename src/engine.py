@@ -69,6 +69,25 @@ def idle(shape, anchor, board):
     return (shape, anchor)
 
 
+def combo_to_line_sent(combo):
+    combo_line_sent_map = {
+        -1: 0,
+        0: 0,
+        1: 1,
+        2: 1,
+        3: 2,
+        4: 2,
+        5: 3,
+        6: 3,
+        7: 4,
+    }
+
+    if combo <= 7:
+        return combo_line_sent_map[combo]
+    else:
+        return 4
+
+
 class TetrisEngine:
     def __init__(self, width, height, enable_KO=True):
         self.width = width
@@ -102,6 +121,8 @@ class TetrisEngine:
 
         # states
         self.total_cleared_lines = 0
+        self.total_sent_lines = 0
+        self.combo = -1
         self.previous_garbage_lines = 0
         self.garbage_lines = 0
         self.highest_line = 0
@@ -169,12 +190,13 @@ class TetrisEngine:
         # Drop each step_num_to_drop step
         cleared_lines = 0
         game_over = False
+        sent_lines = 0
         if self.drop_count == self.step_num_to_drop or action == "hard_drop":
             self.drop_count = 0
             if action != "soft_drop":
                 self.shape, self.anchor = soft_drop(self.shape, self.anchor, self.board)
             if self._has_dropped():
-                cleared_lines, KOed, game_over = self._handle_dropped()
+                cleared_lines, KOed, game_over, sent_lines = self._handle_dropped()
                 reward += cleared_lines * 10
                 reward -= (KOed if self.enable_KO else game_over) * 100
 
@@ -185,13 +207,16 @@ class TetrisEngine:
         state = self.get_board()
         if not game_over:
             game_over = self._update_states()
-        return state, reward, game_over, cleared_lines
+        return state, reward, game_over, cleared_lines, sent_lines
 
     def _handle_dropped(self):
         self.board = self.set_piece(self.shape, self.anchor, self.board, True)
         cleared_lines, self.board = self.clear_lines(self.board)
         self.score += cleared_lines
         self.total_cleared_lines += cleared_lines
+        self.combo = self.combo + cleared_lines if cleared_lines > 0 else -1
+        sent_lines = combo_to_line_sent(self.combo)
+        self.total_sent_lines += sent_lines
         KOed = False
         game_over = False
         if np.any(self.board[:, 0]):
@@ -204,7 +229,7 @@ class TetrisEngine:
         else:
             self._new_piece()
             self.hold_locked = False
-        return cleared_lines, KOed, game_over
+        return cleared_lines, KOed, game_over, sent_lines
 
     def step_to_final(self, action):
         reward = 0
@@ -213,16 +238,10 @@ class TetrisEngine:
         action_final_location_map = self.get_valid_final_states(
             self.shape, self.anchor, self.board)
         self.shape, self.anchor, self.board, actions = action_final_location_map[action]
-        cleared_lines, KOed, game_over = self._handle_dropped()
-        reward += cleared_lines * 10
-        reward -= (KOed if self.enable_KO else game_over) * 100
-        self.board = self.set_piece(self.shape, self.anchor, self.board, True)
-        state = np.copy(self.board)
-        self.board = self.set_piece(self.shape, self.anchor, self.board, False)
-        if not game_over:
-            game_over = self._update_states()
+        for action in actions:
+            state, reward, game_over, cleared_lines, sent_lines = self.step(action)
 
-        return state, reward, game_over, cleared_lines
+        return state, reward, game_over, cleared_lines, sent_lines
 
     def clear(self):
         if not self.enable_KO:
@@ -245,15 +264,16 @@ class TetrisEngine:
         return new_board
 
     def __repr__(self):
-        self.board = self.set_piece(self.shape, self.anchor, self.board, True)
-        s = f"Hold: {self.hold_shape_name}\n"
-        s += f"Next: {self.next_shape_name}\n"
+        board = self.get_board()
+        s = f"Hold: {self.hold_shape_name}  Next: {self.next_shape_name}\n"
         s += 'o' + '-' * self.width + 'o'
-        for line in self.board.T[1:]:
+        for line in board.T[1:]:
             display_line = ['\n|']
             for grid in line:
                 if grid == -1:
                     display_line.append('X')
+                elif grid == -2:
+                    display_line.append('V')
                 elif grid:
                     display_line.append('O')
                 else:
@@ -262,7 +282,6 @@ class TetrisEngine:
             s += "".join(display_line)
 
         s += '\no' + '-' * self.width + 'o\n'
-        self.board = self.set_piece(self.shape, self.anchor, self.board, False)
         return s
 
     def receive_garbage_lines(self, garbage_lines):
@@ -365,6 +384,7 @@ class TetrisEngine:
         return action_state_dict
 
     def get_board(self):
-        board = deepcopy(self.board)
-        board = self.set_piece(self.shape, self.anchor, self.board, True)
+        shape, anchor = hard_drop(self.shape, self.anchor, self.board)
+        hard_dropped_board = self.set_piece(shape, anchor, self.board, -2)
+        board = self.set_piece(self.shape, self.anchor, hard_dropped_board, True)
         return board

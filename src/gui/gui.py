@@ -40,6 +40,7 @@ class UIVariables:
     grey_1 = (26, 26, 26)    # rgb(26, 26, 26)
     grey_2 = (35, 35, 35)    # rgb(35, 35, 35)
     grey_3 = (55, 55, 55)    # rgb(55, 55, 55)
+    grey_4 = (75, 75, 75)
 
     # Tetrimino colors
     cyan = (69, 206, 204)    # rgb(69, 206, 204) # I
@@ -50,7 +51,18 @@ class UIVariables:
     pink = (242, 64, 235)    # rgb(242, 64, 235) # T
     red = (225, 13, 27)      # rgb(225, 13, 27) # Z
 
-    t_color = [grey_2, cyan, blue, orange, yellow, green, pink, red, grey_3]
+    t_color = {
+        -2: grey_4,
+        -1: grey_3,
+        0: grey_2,
+        1: cyan,
+        2: blue,
+        3: orange,
+        4: yellow,
+        5: green,
+        6: pink,
+        7: red,
+    }
 
 
 class GUI:
@@ -64,6 +76,7 @@ class GUI:
         self.start = True
         self.game_over = False
         self.done = False
+        self.pressed_key = None
 
         self.block_size = block_size
 
@@ -108,29 +121,32 @@ class GUI:
         )
 
         # Draw texts
-        text_player = UIVariables.h2.render("Player "+str(player_id+1), 1, UIVariables.black)
+        text_player = UIVariables.h2.render(
+            f"P{player_id+1}: {self.global_state.players[player_id]}", 1, UIVariables.black)
         text_hold = UIVariables.h5.render("HOLD", 1, UIVariables.black)
         text_next = UIVariables.h5.render("NEXT", 1, UIVariables.black)
-        text_score = UIVariables.h5.render("SCORE", 1, UIVariables.black)
-        score_value = UIVariables.h4.render(str(self.global_state.engines[player_id].score),
-                                            1, UIVariables.black)
-        text_lines = UIVariables.h5.render("Cleared lines", 1, UIVariables.black)
-        lines_value = UIVariables.h4.render(str(self.global_state.engines[player_id].total_cleared_lines),
-                                            1, UIVariables.black)
-        text_ko = UIVariables.h5.render("KO's", 1, UIVariables.black)
-        ko_value = UIVariables.h4.render(str(self.global_state.engines[player_id].n_deaths),
-                                         1, UIVariables.black)
 
         # Place texts
-        self.screen.blit(text_player, (x_start + 4 * self.block_size + 120, y_start + 10))
-        self.screen.blit(text_hold, (x_start + 15, y_start + 60))
-        self.screen.blit(text_next, (x_start + 15, y_start + 60 + 5 * self.block_size))
-        self.screen.blit(text_score, (x_start + 15, y_start + 60 + 10 * self.block_size))
-        self.screen.blit(score_value, (x_start + 20, y_start + 60 + 10 * self.block_size + 16))
-        self.screen.blit(text_lines, (x_start + 15, y_start + 60 + 10 * self.block_size + 60))
-        self.screen.blit(lines_value, (x_start + 20, y_start + 60 + 10 * self.block_size + 76))
-        self.screen.blit(text_ko, (x_start + 15, y_start + 60 + 10 * self.block_size + 120))
-        self.screen.blit(ko_value, (x_start + 20, y_start + 60 + 10 * self.block_size + 136))
+        pad = 45
+        self.screen.blit(text_player, (x_start + 4 * self.block_size + 50, y_start + 10))
+        self.screen.blit(text_hold, (x_start + 15, y_start + pad))
+        self.screen.blit(text_next, (x_start + 15, y_start + pad + 5 * self.block_size))
+        texts = [
+            "K.O.",
+            f"  {self.global_state.engine_states[player_id]['KO']}",
+            "Combo",
+            f"  {self.global_state.engine_states[player_id]['combo']}",
+            "Lines sent",
+            f"  {self.global_state.engine_states[player_id]['lines_sent']}",
+            "Lines cleared",
+            f"  {self.global_state.engine_states[player_id]['lines_cleared']}"
+        ]
+        for i, text in enumerate(texts):
+            if i % 2 == 0:
+                text_render = UIVariables.h5.render(text, 1, UIVariables.black)
+            else:
+                text_render = UIVariables.h4.render(text, 1, UIVariables.black)
+            self.screen.blit(text_render, (x_start + 15, y_start + 30 + 10 * self.block_size + i * pad - (i % 2) * 20))
 
     # Draw next mino for one player
     def _draw_next_mino(self, x_start, y_start, player_id):
@@ -195,7 +211,7 @@ class GUI:
 
     # TODO
     def _draw_statistics(self):
-                return
+        return
 
     # Updates the whole screen on call
     def update_screen(self):
@@ -235,8 +251,10 @@ class GUI:
             events = pygame.event.get()
             for event in reversed(events):
                 if event.type == pygame.KEYDOWN:
-                    key_pressed = event.key
-                    return key_pressed
+                    self.pressed_key = event.key
+                elif event.type == pygame.KEYUP:
+                    self.pressed_key = None
+                return self.pressed_key
 
         # Game over screen
         elif self.game_over:

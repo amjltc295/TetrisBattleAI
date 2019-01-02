@@ -221,7 +221,7 @@ def play_game_with_gen(dict_genes, engine):
         actions_name, placement, actions = genetic_agent.select_action(
             engine, engine.shape, engine.anchor, engine.board, dict_genes)
         # Observations
-        state, reward, done, cleared_lines = engine.step_to_final(actions_name)
+        state, reward, done, cleared_lines, sent_lines = engine.step_to_final(actions_name)
         # Perform one step of the optimization (on the target network)
         cl += cleared_lines
         print(engine)
