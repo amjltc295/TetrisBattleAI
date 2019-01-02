@@ -376,14 +376,14 @@ class TetrisEngine:
     def get_valid_final_states(self, shape, anchor, board):
         # Reference https://github.com/brendanberg01/TetrisAI/blob/master/ai.py
         action_state_dict = {}
-        candidante_shapes = {
-            False: shape,
-            True: self.hold_shape if self.hold_shape is not None else self.next_shape
+        candidate_shapes = {
+            0: shape,
+            1: self.hold_shape if self.hold_shape_name is not None else self.next_shape
         }
-        for hold, chosen_shape in candidante_shapes.items():
+        for hold, chosen_shape in candidate_shapes.items():
             for move in range(-self.width // 2, self.width // 2 + 1):
                 for rotate in range(0, 4):
-                    actions = ['hold'] if hold else []
+                    actions = []
                     final_shape, final_anchor, final_board = chosen_shape, anchor, deepcopy(board)
                     for i in range(rotate):
                         actions.append("rotate_right")  # right_rotate
@@ -399,8 +399,10 @@ class TetrisEngine:
                         final_shape, final_anchor = self.value_action_map[action](
                             final_shape, final_anchor, board
                         )
+                    if hold:
+                        actions.insert(0, 'hold')
                     final_board = self.set_piece(final_shape, final_anchor, board, True)
-                    action_name = f"move_{move}_right_rotate_{rotate}"
+                    action_name = f"move_{move}_right_rotate_{rotate}_hold_{hold}"
                     action_state_dict[action_name] = (final_shape, final_anchor, final_board, actions)
         return action_state_dict
 
