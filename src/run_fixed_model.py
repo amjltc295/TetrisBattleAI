@@ -12,7 +12,7 @@ def run():
     while True:
         actions_name, placement, actions = agent.select_action(engine, engine.shape, engine.anchor, engine.board)
 
-        state, reward, done, cleared_lines, sent_lines = engine.step_to_final(actions_name)
+        state, reward, done, cleared_lines, sent_lines = engine.step_to_final(actions)
 
         # Accumulate reward
         score += int(cleared_lines)

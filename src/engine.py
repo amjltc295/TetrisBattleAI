@@ -248,13 +248,8 @@ class TetrisEngine:
             self.hold_locked = False
         return cleared_lines, KOed, game_over, sent_lines
 
-    def step_to_final(self, action):
-        reward = 0
-
-        # actions that directly go to the final locations
-        action_final_location_map = self.get_valid_final_states(
-            self.shape, self.anchor, self.board)
-        self.shape, self.anchor, self.board, actions = action_final_location_map[action]
+    def step_to_final(self, actions):
+        # actions: list of actions that directly go to the final locations
         for action in actions:
             state, reward, game_over, cleared_lines, sent_lines = self.step(action)
 

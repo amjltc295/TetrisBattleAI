@@ -86,7 +86,7 @@ class DNA:
                 actions_name, placement, actions = genetic_agent.select_action(
                     self.engine, self.engine.shape, self.engine.anchor, self.engine.board, self.dict_genes)
                 # Observations
-                state, reward, done, cleared_lines = engine.step_to_final(actions_name)
+                state, reward, done, cleared_lines, sent_lines = engine.step_to_final(actions)
                 # Perform one step of the optimization (on the target network)
                 cl += cleared_lines
                 score += (cleared_lines**2) * 100 + 1
@@ -221,7 +221,7 @@ def play_game_with_gen(dict_genes, engine):
         actions_name, placement, actions = genetic_agent.select_action(
             engine, engine.shape, engine.anchor, engine.board, dict_genes)
         # Observations
-        state, reward, done, cleared_lines, sent_lines = engine.step_to_final(actions_name)
+        state, reward, done, cleared_lines, sent_lines = engine.step_to_final(actions)
         # Perform one step of the optimization (on the target network)
         cl += cleared_lines
         print(engine)
