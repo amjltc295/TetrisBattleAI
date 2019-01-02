@@ -1,5 +1,6 @@
 import numpy as np
 from genetic_heuristic import gen_heuristic
+from engine import board_to_bool
 
 genes = ['holes_stack_area', 'holes_clean_area', 'height_stack_area', 'height_clean_area',
          'aggregation_stack_area', 'bumpiness', 'clear_lines']
@@ -42,7 +43,7 @@ class GeneticPolicyAgent:
         # act_pairs = (dict_key, final_board, actions)
         act_pairs = [(k, v[2], v[3]) for k, v in actions_name_final_location_map.items()]
         # Only final boards
-        placements = [p for k, p, actions in act_pairs]
+        placements = [board_to_bool(p) for k, p, actions in act_pairs]
         # Uses the heuristic for every possible placement
         h_score = [gen_heuristic(s, dict_genes) for s in placements]
         act_idx = np.argmax(h_score)

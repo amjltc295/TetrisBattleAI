@@ -12,7 +12,16 @@ shapes = {
     'I': [(0, 0), (0, -1), (0, -2), (0, -3)],
     'O': [(0, 0), (0, -1), (-1, 0), (-1, -1)],
 }
-shape_names = ['T', 'J', 'L', 'Z', 'S', 'I', 'O']
+value_to_shape_names_map = {
+    1: 'T',
+    2: 'J',
+    3: 'L',
+    4: 'Z',
+    5: 'S',
+    6: 'I',
+    7: 'O'
+}
+shape_name_to_value_map = dict([(j, i) for i, j in value_to_shape_names_map.items()])
 
 
 def rotated(shape, cclk=False):
@@ -88,6 +97,13 @@ def combo_to_line_sent(combo):
         return 4
 
 
+def board_to_bool(board):
+    board_bool = np.zeros_like(board)
+    board_bool[board > 0] = True
+    board_bool[board <= 0] = False
+    return board_bool
+
+
 class TetrisEngine:
     def __init__(self, width, height, enable_KO=True):
         self.width = width
@@ -146,7 +162,7 @@ class TetrisEngine:
             r -= n
             if r <= 0:
                 self._shape_counts[i] += 1
-                return shape_names[i], shapes[shape_names[i]]
+                return value_to_shape_names_map[i+1], shapes[value_to_shape_names_map[i+1]]
 
     def _new_piece(self):
         self.shape_name, self.shape = self.next_shape_name, self.next_shape
@@ -160,7 +176,8 @@ class TetrisEngine:
         return is_occupied(self.shape, (self.anchor[0], self.anchor[1] + 1), self.board)
 
     def clear_lines(self, board):
-        can_clear = [True if sum(board[:, i]) == self.width else False for i in range(self.height)]
+        board_bool = board_to_bool(board)
+        can_clear = [True if sum(board_bool[:, i]) == self.width else False for i in range(self.height)]
         new_board = np.zeros_like(board)
         j = self.height - 1
         for i in range(self.height - 1, -1, -1):
@@ -219,7 +236,7 @@ class TetrisEngine:
         self.total_sent_lines += sent_lines
         KOed = False
         game_over = False
-        if np.any(self.board[:, 0]):
+        if np.any(board_to_bool(self.board)[:, 0]):
             self.board = self.set_piece(self.shape, self.anchor, self.board, True)
             if self.garbage_lines == 0:
                 game_over = True
@@ -255,7 +272,11 @@ class TetrisEngine:
 
         return self.board
 
-    def set_piece(self, shape, anchor, board, on=False):
+    def set_piece(self, shape, anchor, board, on=False, shape_value=None):
+        if shape_value is None:
+            shape_value = shape_name_to_value_map[self.shape_name]
+        if on:
+            on = shape_value
         new_board = deepcopy(board)
         for i, j in shape:
             x, y = i + anchor[0], j + anchor[1]
@@ -311,7 +332,7 @@ class TetrisEngine:
 
         # Check additional garbage_lines cause KO
         game_over = False
-        if np.any(new_board[:, 0]):
+        if np.any(board_to_bool(new_board)[:, 0]):
             if self.garbage_lines == 0:
                 game_over = True
             new_board = np.zeros_like(self.board)
@@ -385,6 +406,6 @@ class TetrisEngine:
 
     def get_board(self):
         shape, anchor = hard_drop(self.shape, self.anchor, self.board)
-        hard_dropped_board = self.set_piece(shape, anchor, self.board, -2)
+        hard_dropped_board = self.set_piece(shape, anchor, self.board, True, -2)
         board = self.set_piece(self.shape, self.anchor, hard_dropped_board, True)
         return board
