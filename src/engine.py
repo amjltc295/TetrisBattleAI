@@ -373,7 +373,7 @@ class TetrisEngine:
                 count = -1
         return self.shape, self.anchor
 
-    def get_valid_final_states(self, shape, anchor, board):
+    def get_valid_final_states(self, shape, anchor, board, enable_hold=True):
         # Reference https://github.com/brendanberg01/TetrisAI/blob/master/ai.py
         action_state_dict = {}
         candidate_shapes = {
@@ -381,6 +381,8 @@ class TetrisEngine:
             1: self.hold_shape if self.hold_shape_name is not None else self.next_shape
         }
         for hold, chosen_shape in candidate_shapes.items():
+            if not enable_hold and hold:
+                break
             for move in range(-self.width // 2, self.width // 2 + 1):
                 for rotate in range(0, 4):
                     actions = []

@@ -1,3 +1,8 @@
+'''
+Provides a logger with clear format setting and log files recording
+
+Please install coloredlogs for better display.
+'''
 import os
 import sys
 from time import localtime, strftime

@@ -2,8 +2,10 @@ import random
 from itertools import count
 import sys
 import time
+
 from engine import TetrisEngine
 from genetic_policy_agent import GeneticPolicyAgent
+from logging_config import logger
 
 genes = ['holes_stack_area', 'holes_clean_area', 'height_stack_area', 'height_clean_area',
          'aggregation_stack_area', 'bumpiness', 'clear_lines']
@@ -51,11 +53,11 @@ class DNA:
         self.engine = engine
         self.fitness = 0.0
         self.prob = 0.0
-        self.cleared_lines = 0
+        self.sent_lines = 0
 
     def __str__(self):
         dna_values = self.dict_genes.values()
-        dna_str = ', '.join(str(e) for e in dna_values)
+        dna_str = ', '.join(f"{e:.4f}" for e in dna_values)
         return dna_str
 
     def init_dict_gen(self, gen_name):
@@ -79,22 +81,24 @@ class DNA:
         num_games = 3
         for i in range(num_games):
             engine.clear()
-            cl = 0
+            sl = 0
             score = 0
             for t in count():
                 # Select and perform an action
                 actions_name, placement, actions = genetic_agent.select_action(
                     self.engine, self.engine.shape, self.engine.anchor, self.engine.board, self.dict_genes)
                 # Observations
-                state, reward, done, cleared_lines, sent_lines = engine.step_to_final(actions)
+                state, reward, done, sent_lines, sent_lines = engine.step_to_final(actions)
+                if random.randint(1, 10) < 2:
+                    engine.receive_garbage_lines(1)
                 # Perform one step of the optimization (on the target network)
-                cl += cleared_lines
-                score += (cleared_lines**2) * 100 + 1
-                if done or cleared_lines > 500:
+                sl += sent_lines
+                score += (sent_lines**2) * 10 + 1
+                if done or sent_lines > 500:
                     # Evaluate this DNA
                     total_score += score
-                    if cl > self.cleared_lines:
-                        self.cleared_lines = cl
+                    if sl > self.sent_lines:
+                        self.sent_lines = sl
                     break
         self.fitness = int(total_score / num_games)
 
@@ -171,7 +175,7 @@ class Population:
             for i in range(self.population_size):
                 total += self.population[i].dict_genes[genes[g]]
             diversity.append(total/self.population_size)
-        print("Average value for every gen: ", diversity)
+        logger.info(f"Average value for every gen: {diversity}")
 
     def generate_next_generation(self):
         next_generation = list()
@@ -192,20 +196,20 @@ class GeneticAlgorithm:
 
     def evolve_the_beasts(self):
         self.population.calc_fitness_prob()
-        print("Generation ", self.population.current_generation)
-        print("Max fitness: ", self.population.max_fitness)
-        print("Max lines cleared from best: ", self.population.best.cleared_lines)
-        print("Best child: ", self.population.best)
-        print("Average fitness: ", self.population.get_avg_fitness())
+        logger.info(f"Generation {self.population.current_generation}")
+        logger.info(f"Max fitness: {self.population.max_fitness}")
+        logger.info(f"Max lines sent from best: {self.population.best.sent_lines}")
+        logger.info(f"Best child: {self.population.best}")
+        logger.info(f"Average fitness: {self.population.get_avg_fitness()}")
         self.population.print_diversity()
         for i in range(self.num_generations):
             self.population.generate_next_generation()
             self.population.calc_fitness_prob()
-            print("Generation ", self.population.current_generation)
-            print("Max fitness: ", self.population.max_fitness)
-            print("Max lines cleared from best: ", self.population.best.cleared_lines)
-            print("Best child: ", self.population.best)
-            print("Average fitness: ", self.population.get_avg_fitness())
+            logger.info(f"Generation {self.population.current_generation}")
+            logger.info(f"Max fitness: {self.population.max_fitness}")
+            logger.info(f"Max lines sent from best: {self.population.best.sent_lines}")
+            logger.info(f"Best child: {self.population.best}")
+            logger.info(f"Average fitness: {self.population.get_avg_fitness()}")
             self.population.print_diversity()
         fh = open("best_genes.txt", "a")
         fh.write(str(self.population.best.dict_genes))
@@ -216,25 +220,25 @@ class GeneticAlgorithm:
 
 def play_game_with_gen(dict_genes, engine):
     engine.clear()
-    cl = 0
+    sl = 0
     for t in count():
         actions_name, placement, actions = genetic_agent.select_action(
             engine, engine.shape, engine.anchor, engine.board, dict_genes)
         # Observations
         state, reward, done, cleared_lines, sent_lines = engine.step_to_final(actions)
         # Perform one step of the optimization (on the target network)
-        cl += cleared_lines
-        print(engine)
-        print("Cleared lines: ", cl)
+        sl += sent_lines
+        logger.info(engine)
+        logger.info(f"Sent lines: {sl}")
         time.sleep(.1)
         if done:
             break
-    print("")
-    print("")
-    print("")
+    logger.info("")
+    logger.info("")
+    logger.info("")
 
 
 if __name__ == '__main__':
     engine = TetrisEngine(width, height, enable_KO=False)
-    darwin = GeneticAlgorithm(population_size=50, mutation_rate=0.05, num_generations=10, engine=engine)
+    darwin = GeneticAlgorithm(population_size=50, mutation_rate=0.05, num_generations=30, engine=engine)
     darwin.evolve_the_beasts()
