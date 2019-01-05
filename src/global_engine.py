@@ -9,11 +9,13 @@ from gui.gui import GUI
 from fixed_policy_agent import FixedPolicyAgent
 from genetic_policy_agent import GeneticPolicyAgent
 from random_agent import RandomActionAgent
+from ac_agent import setup_model
 from logging_config import logger
 
 gen_agent = GeneticPolicyAgent()
 random_agent = RandomActionAgent()
 fixed_policy_agent = FixedPolicyAgent()
+ac_agent = setup_model()
 
 
 def parse_args():
@@ -70,6 +72,8 @@ class GlobalEngine:
                 self.players[i] = random_agent
             elif players[i] == 'g':
                 self.players[i] = gen_agent
+            elif players[i] == 'a':
+                self.players[i] = ac_agent
             else:
                 raise NotImplementedError(f"{players}")
             self.stats[i] = {}

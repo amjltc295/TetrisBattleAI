@@ -55,6 +55,7 @@ class AC(nn.Module):
         self.lin1 = nn.Linear(640, 64)
         self.Q_lin = nn.Linear(2*64, 1)
         self.V_lin = nn.Linear(64, 1)
+        self.current_actions = []
 
     def forward(self, x, placement):
         batch, _, _, _ = x.shape
@@ -69,6 +70,20 @@ class AC(nn.Module):
         Q = self.Q_lin(torch.cat([x, placement], dim=-1))
         V = self.V_lin(x)
         return Q, V
+
+    def get_action(self, engine, shape, anchor, board):
+        if len(self.current_actions) == 0:
+            _, _, self.current_actions = self.select_action(engine, board)
+        action = self.current_actions.pop(0)
+        return action
+
+    def select_action(self, engine, state):
+        action_final_location_map = engine.get_valid_final_states(engine.shape, engine.anchor, engine.board)
+        act_pairs = [(k, v[2], v[3]) for k, v in action_final_location_map.items()]
+        act_prob, V = get_action_probability(self, state, act_pairs)
+        act_idx = int(np.random.choice(len(act_prob), 1, p=act_prob.cpu().detach().numpy()))
+        actions_name, placement, actions = act_pairs[act_idx]
+        return actions_name, placement, actions
 
 
 GAMMA = 0.99
@@ -95,7 +110,7 @@ def discount_rewards(rewards):
 
 
 def get_action_probability(model, state, act_pairs):
-    placements = torch.cat([FloatTensor(v)[None, None, :, :] for k, v, actions in act_pairs], dim=0)
+    placements = torch.cat([FloatTensor(v)[None, None, :, :] for k, v, act in act_pairs], dim=0)
     states = FloatTensor(state)[None, None, :, :].repeat(len(act_pairs), 1, 1, 1)
     act_score, V = model(states, placements)
     act_score = act_score.flatten()
@@ -118,6 +133,15 @@ def load_checkpoint(model, filename, critic_opt=None, actor_opt=None):
     if actor_opt is not None:
         actor_opt.load_state_dict(checkpoint['actor_opt'])
     return checkpoint['epoch'], checkpoint['best_score']
+
+
+def setup_model(checkpoint='./tar/ac_best.pth.tar'):
+    model = AC()
+    if use_cuda:
+        model.cuda()
+    epoch, best_score = load_checkpoint(model, checkpoint)
+    model.train()
+    return model
 
 
 if __name__ == '__main__':
@@ -161,17 +185,17 @@ if __name__ == '__main__':
         V_list = []
         for t in count():
             # Select and perform an action
-            actions_name_final_location_map = engine.get_valid_final_states(engine.shape, engine.anchor, engine.board)
-            act_pairs = [(k, v[2], v[3]) for k, v in actions_name_final_location_map.items()]
+            action_final_location_map = engine.get_valid_final_states(engine.shape, engine.anchor, engine.board)
+            act_pairs = [(k, v[2]) for k, v in action_final_location_map.items()]
             act_prob, V = get_action_probability(model, state, act_pairs)
             act_idx = int(np.random.choice(len(act_prob), 1, p=act_prob.cpu().detach().numpy()))
             act_prob_list.append(act_prob[act_idx].unsqueeze(0))
             V_list.append(V.unsqueeze(0))
             entropy_loss += -entropy(act_prob)
-            actions_name, placement, actions = act_pairs[act_idx]
+            act, placement = act_pairs[act_idx]
 
             # Observations
-            state, reward, done, cleared_lines, sent_lines = engine.step_to_final(actions)
+            state, reward, done, cleared_lines = engine.step_to_final(act)
             # for training purpose
             reward = cleared_lines**2 if not done else -100
             # Accumulate reward
