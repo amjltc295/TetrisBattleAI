@@ -78,7 +78,14 @@ def idle(shape, anchor, board):
     return (shape, anchor)
 
 
-def combo_to_line_sent(combo):
+def combo_to_line_sent(cleared_lines, combo):
+    clear_line_line_sent_map = {
+        0: 0,
+        1: 0,
+        2: 1,
+        3: 2,
+        4: 4
+    }
     combo_line_sent_map = {
         -1: 0,
         0: 0,
@@ -92,9 +99,9 @@ def combo_to_line_sent(combo):
     }
 
     if combo <= 7:
-        return combo_line_sent_map[combo]
+        return combo_line_sent_map[combo] + clear_line_line_sent_map[cleared_lines]
     else:
-        return 4
+        return 4 + clear_line_line_sent_map[cleared_lines]
 
 
 def board_to_bool(board):
@@ -232,7 +239,7 @@ class TetrisEngine:
         self.score += cleared_lines
         self.total_cleared_lines += cleared_lines
         self.combo = self.combo + cleared_lines if cleared_lines > 0 else -1
-        sent_lines = combo_to_line_sent(self.combo)
+        sent_lines = combo_to_line_sent(cleared_lines, self.combo)
         self.total_sent_lines += sent_lines
         KOed = False
         game_over = False
@@ -405,7 +412,7 @@ class TetrisEngine:
                         actions.insert(0, 'hold')
                     final_board = self.set_piece(final_shape, final_anchor, board, True)
                     action_name = f"move_{move}_right_rotate_{rotate}_hold_{hold}"
-                    action_state_dict[action_name] = (final_shape, final_anchor, final_board, actions)
+                    action_state_dict[action_name] = (final_shape, final_anchor, board_to_bool(final_board), actions)
         return action_state_dict
 
     def get_board(self):
