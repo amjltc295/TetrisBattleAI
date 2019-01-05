@@ -9,10 +9,12 @@ from gui.gui import GUI
 from fixed_policy_agent import FixedPolicyAgent
 from genetic_policy_agent import GeneticPolicyAgent
 from random_agent import RandomActionAgent
+from rule_based_agent import RuleBasedAgent
 from logging_config import logger
 
 gen_agent = GeneticPolicyAgent()
 random_agent = RandomActionAgent()
+rule_based_agent = RuleBasedAgent()
 fixed_policy_agent = FixedPolicyAgent()
 
 
@@ -67,7 +69,8 @@ class GlobalEngine:
             elif players[i] == 'f':
                 self.players[i] = fixed_policy_agent
             elif players[i] == 'r':
-                self.players[i] = random_agent
+                # self.players[i] = random_agent
+                self.players[i] = rule_based_agent
             elif players[i] == 'g':
                 self.players[i] = gen_agent
             else:

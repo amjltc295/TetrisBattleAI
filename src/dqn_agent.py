@@ -14,15 +14,17 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 
 from engine import TetrisEngine
+from logging_config import logger
 
 width, height = 10, 20  # standard tetris friends rules
-engine = TetrisEngine(width, height)
+engine = TetrisEngine(width, height, enable_KO=False)
+value_to_actions = engine.get_value_to_actions()
 
 
 # if gpu is to be used
 use_cuda = torch.cuda.is_available()
 if use_cuda:
-    print("....Using Gpu...")
+    logger.info("....Using Gpu...")
 FloatTensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
 LongTensor = torch.cuda.LongTensor if use_cuda else torch.LongTensor
 ByteTensor = torch.cuda.ByteTensor if use_cuda else torch.ByteTensor
@@ -76,7 +78,8 @@ class DQN(nn.Module):
         # self.bn3 = nn.BatchNorm2d(32)
         # self.rnn = nn.LSTM(448, 240)
         self.lin1 = nn.Linear(768, 256)
-        self.head = nn.Linear(256, engine.nb_actions)
+        # self.head = nn.Linear(256, engine.nb_actions)
+        self.head = nn.Linear(256, len(value_to_actions))
 
     def forward(self, x):
         x = F.relu(self.bn1(self.conv1(x)))
@@ -117,7 +120,7 @@ CHECKPOINT_FILE = 'checkpoint.pth.tar'
 steps_done = 0
 
 model = DQN()
-print(model)
+logger.info(model)
 
 if use_cuda:
     model.cuda()
@@ -229,10 +232,7 @@ def optimize_model():
         param.grad.data.clamp_(-1, 1)
     optimizer.step()
 
-    if len(loss.data) > 0:
-        return loss.data[0]
-    else:
-        return loss
+    return loss
 
 
 def optimize_supervised(pred, targ):
@@ -271,12 +271,11 @@ if __name__ == '__main__':
         if len(sys.argv) > 2:
             CHECKPOINT_FILE = sys.argv[2]
         if os.path.isfile(CHECKPOINT_FILE):
-            print("=> loading checkpoint '{}'".format(CHECKPOINT_FILE))
+            logger.info("=> loading checkpoint '{}'".format(CHECKPOINT_FILE))
             start_epoch, best_score = load_checkpoint(CHECKPOINT_FILE)
-            print("=> loaded checkpoint '{}' (epoch {})"
-                  .format(CHECKPOINT_FILE, start_epoch))
+            logger.info("=> loaded checkpoint '{}' (epoch {})".format(CHECKPOINT_FILE, start_epoch))
         else:
-            print("=> no checkpoint found at '{}'".format(CHECKPOINT_FILE))
+            logger.info("=> no checkpoint found at '{}'".format(CHECKPOINT_FILE))
 
     ######################################################################
     #
@@ -286,23 +285,38 @@ if __name__ == '__main__':
     # 1), and optimize our model once. When the episode ends (our model
     # fails), we restart the loop.
 
-    f = open('log.out', 'w+')
     for i_episode in count(start_epoch):
         # Initialize the environment and state
         state = FloatTensor(engine.clear()[None, None, :, :])
 
         score = 0
+        total_cleared_lines = 0
         for t in count():
             # Select and perform an action
             action = select_action(state).type(LongTensor)
+            '''
+            value_action_name_map = {
+                0: "move_left",
+                1: "move_right",
+                2: "hard_drop",
+                3: "soft_drop",
+                4: "rotate_left",
+                5: "rotate_right",
+                6: "idle",
+                7: "hold"
+            }
+
+            '''
 
             # Observations
             last_state = state
-            state, reward, done = engine.step(action[0, 0])
+            state, reward, done, cleared_lines, sent_lines = engine.step_to_final(
+                value_to_actions[int(action[0, 0].cpu())])
             state = FloatTensor(state[None, None, :, :])
 
             # Accumulate reward
-            score += int(reward)
+            score += (cleared_lines ** 2) + 1 + sent_lines * 100
+            total_cleared_lines += cleared_lines
 
             reward = FloatTensor([float(reward)])
             # Store the transition in memory
@@ -312,12 +326,12 @@ if __name__ == '__main__':
             if done:
                 # Train model
                 if i_episode % 10 == 0:
-                    log = 'epoch {0} score {1}'.format(i_episode, score)
-                    print(log)
-                    f.write(log + '\n')
+                    last_board = engine.get_last_board()
+                    logger.info(engine.print_board(last_board))
+                    logger.info(f"Epoch {i_episode}, score {score}, cleared_lines {total_cleared_lines}")
                     loss = optimize_model()
                     if loss:
-                        print('loss: {:.0f}'.format(loss))
+                        logger.info('loss: {:.0f}'.format(loss))
                 # Checkpoint
                 if i_episode % 100 == 0:
                     is_best = True if score > best_score else False
@@ -330,5 +344,4 @@ if __name__ == '__main__':
                         }, is_best)
                 break
 
-    f.close()
-    print('Complete')
+    logger.info('Complete')

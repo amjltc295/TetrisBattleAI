@@ -70,12 +70,16 @@ def get_emptyness(state):
     return emptyness
 
 
-def heuristic_fn2(state, cleared_lines, block, combo=False):
-    height_0 = get_height(state, 0)
-    if combo and get_height(state, 0) > 0 and cleared_lines > 0:
+def heuristic_fn2(state, cleared_lines, combo=False):
+    if combo and get_height(state, 0) > 0:
         return 10000
-    elif cleared_lines > 2:
+    elif get_height(state, 0) > 1:
         return 10000
     else:
-        # return -get_emptyness(state) - height_0 * 100 - get_hole(state)
-        return -0.51*aggregate_height(state) + 0.76*cleared_lines - 0.36*get_hole(state) - 0.18*bumpiness(state) - height_0 * 100
+        return (
+            -0.51*aggregate_height(state)
+            + 0.76*cleared_lines
+            - 0.36*get_hole(state)
+            - 0.18*bumpiness(state)
+            - get_height(state, 0) * 10000
+        )

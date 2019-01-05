@@ -155,6 +155,7 @@ class TetrisEngine:
         self.hold_shape = []
         self.hold_shape_name = None
         self.next_shape_name, self.next_shape = self._choose_shape()
+        self.last_board = None
 
         self.enable_KO = enable_KO  # clear only the garbage lines after dead
 
@@ -263,6 +264,7 @@ class TetrisEngine:
         return state, reward, game_over, cleared_lines, sent_lines
 
     def clear(self):
+        self.last_board = deepcopy(self.board)
         if not self.enable_KO:
             self.time = 0
             self.score = 0
@@ -287,7 +289,9 @@ class TetrisEngine:
         return new_board
 
     def __repr__(self):
-        board = self.get_board()
+        return self.print_board(self.get_board())
+
+    def print_board(self, board):
         s = f"Hold: {self.hold_shape_name}  Next: {self.next_shape_name}\n"
         s += 'o' + '-' * self.width + 'o'
         for line in board.T[1:]:
@@ -415,8 +419,18 @@ class TetrisEngine:
                     action_state_dict[action_name] = (final_shape, final_anchor, board_to_bool(final_board), actions)
         return action_state_dict
 
+    def get_value_to_actions(self):
+        action_state_dict = self.get_valid_final_states(self.shape, self.anchor, self.board)
+        value_to_actions = {}
+        for i, (final_shape, final_anchor, final_board, actions)in enumerate(action_state_dict.values()):
+            value_to_actions[i] = actions
+        return value_to_actions
+
     def get_board(self):
         shape, anchor = hard_drop(self.shape, self.anchor, self.board)
         hard_dropped_board = self.set_piece(shape, anchor, self.board, True, -2)
         board = self.set_piece(self.shape, self.anchor, hard_dropped_board, True)
         return board
+
+    def get_last_board(self):
+        return self.last_board

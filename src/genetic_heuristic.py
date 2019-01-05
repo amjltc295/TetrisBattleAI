@@ -108,11 +108,15 @@ def pyr_func(x, peak=15):
 
 
 def gen_heuristic(state, dict_genes):
-    holes_value = dict_genes['holes_stack_area'] * (get_hole_stack_area(state)**2) + \
-                  dict_genes['holes_clean_area'] * (get_hole_clean_area(state)**2)
-    max_height_value = dict_genes['height_stack_area'] * rect_func(max_height_stack_area(
-        state)) + dict_genes['height_clean_area'] * max_height_clean_area(state)
-    aggregation_value = dict_genes['aggregation_stack_area'] * aggregate_height_stack_area(state)
-    clear_lines = dict_genes['clear_lines'] * (math.exp(complete_line(state)**2/2) - 1)
-    bumpiness_value = dict_genes['bumpiness'] * bumpiness(state)
+    try:
+        holes_value = dict_genes['holes_stack_area'] * (get_hole_stack_area(state)**2) + \
+                      dict_genes['holes_clean_area'] * (get_hole_clean_area(state)**2)
+        max_height_value = dict_genes['height_stack_area'] * rect_func(max_height_stack_area(
+            state)) + dict_genes['height_clean_area'] * max_height_clean_area(state)
+        aggregation_value = dict_genes['aggregation_stack_area'] * aggregate_height_stack_area(state)
+        clear_lines = dict_genes['clear_lines'] * (math.exp(complete_line(state)**2/2) - 1)
+        bumpiness_value = dict_genes['bumpiness'] * bumpiness(state)
+    except:
+        import pdb
+        pdb.set_trace()
     return holes_value + max_height_value + aggregation_value + clear_lines + bumpiness_value

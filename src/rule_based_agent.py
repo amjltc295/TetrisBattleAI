@@ -2,7 +2,7 @@
 import numpy as np
 
 from engine import TetrisEngine, board_to_bool
-from heuristic import heuristic_fn2, complete_line, get_height
+from heuristic import heuristic_fn2, complete_line  # , get_height
 
 width, height = 10, 20  # standard tetris friends rules
 engine = TetrisEngine(width, height, enable_KO=False)
