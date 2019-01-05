@@ -39,6 +39,7 @@ class GlobalEngine:
         self.player_num = player_num
         self.game_time = game_time
         self.KO_num_to_win = KO_num_to_win
+        self.game_num = game_num
 
         # For GUI use
         self.gui = None
@@ -68,6 +69,7 @@ class GlobalEngine:
                     self.players[i] = 'genetic_policy_agent'
             else:
                 self.players[i] = 'fixed_policy_agent'
+            self.stats[i] = {}
             self.stats[i]['win_times'] = 0
             self.stats[i]['total_sent_line'] = 0
             self.stats[i]['total_cleared_line'] = 0
@@ -175,6 +177,10 @@ class GlobalEngine:
         action = self.keyboard_control(key)
         return action
 
+    def play(self):
+        for i in range(self.game_num):
+            self.play_game()
+
     def play_game(self):
         # Initialization
         self.setup()
@@ -185,7 +191,7 @@ class GlobalEngine:
             game_over = self.update_engines()
 
         winner, max_score = self.compare_score()
-        self.update_stats()
+        self.update_stats(winner)
         if not self.use_gui:
             self.stdscr.clear()
             self.stdscr.addstr(f'Game Over, winner: {winner}, States: {self.engine_states}\n')
@@ -193,20 +199,32 @@ class GlobalEngine:
             logger.info(f"Winner: {winner}")
             logger.info(f"States: {self.engine_states}")
 
-        return self.dbs, winner
+        return winner
 
     def update_stats(self, winner):
         self.stats[winner]['win_times'] += 1
         for i in range(self.player_num):
-            self.stats[i]['total_sent_line'] += self.engine_states[i]['sent_lines']
-            self.stats[i]['total_cleared_line'] += self.engine_states[i]['cleared_lines']
+            self.stats[i]['total_sent_line'] += self.engine_states[i]['lines_sent']
+            self.stats[i]['total_cleared_line'] += self.engine_states[i]['lines_cleared']
             self.stats[i]['total_KO'] += self.engine_states[i]['KO']
 
-    def get_stats(self, game_num):
+    def get_stats(self):
         for i in range(self.player_num):
-            self.stats[i]['avg_sent_line'] = self.stats[i]['total_sent_line'] / game_num
-            self.stats[i]['avg_cleared_line'] = self.stats[i]['total_cleared_line'] / game_num
+            self.stats[i]['avg_sent_line'] = self.stats[i]['total_sent_line'] / self.game_num
+            self.stats[i]['avg_cleared_line'] = self.stats[i]['total_cleared_line'] / self.game_num
         return self.stats
+
+    def show_stats(self):
+        stats = self.get_stats()
+        stats_string = ""
+        for i in range(self.player_num):
+            stats_string += f"Player {i+1}: Win {stats[i]['win_times']}\n"
+            stats_string += f"\tAvg line sent: {stats[i]['avg_sent_line']}\n"
+            stats_string += f"\tAvg line cleared: {stats[i]['avg_cleared_line']}\n"
+            stats_string += f"\tTotal line sent: {stats[i]['total_sent_line']}\n"
+            stats_string += f"\tTotal line cleared: {stats[i]['total_cleared_line']}\n"
+            stats_string += f"\tTotal KO: {stats[i]['total_KO']}\n\n"
+        return stats_string
 
     def update_engines(self):
         game_over = False
@@ -219,7 +237,7 @@ class GlobalEngine:
             # Update state
             self.set_engine_state(idx, engine, reward)
             self.send_lines(idx, sent_lines)
-            self.dbs[idx].append((state, reward, self.done, action))
+            # self.dbs[idx].append((state, reward, self.done, action))
 
             if self.engine_states[idx]['KO'] >= self.KO_num_to_win:
                 game_over = True
@@ -267,14 +285,14 @@ if __name__ == '__main__':
         args.KO_num_to_win, args.game_num
     )
     signal.signal(signal.SIGINT, global_engine.tear_down)
-    for i in range(args.game_num):
-        dbs, winner = global_engine.play_game()
+    global_engine.play()
     if not args.use_gui:
         global_engine.stdscr.clear()
         global_engine.stdscr.addstr(f"\n------------------------------------------------\n")
-        global_engine.stdscr.addstr(f"{global_engine.game_count} games done\n")
-        global_engine.stdscr.addstr(f"Stats: {global_engine.get_stats(args.game_num)}\n")
+        global_engine.stdscr.addstr(f"{global_engine.game_count} games done\n\n")
+        global_engine.stdscr.addstr(f"{global_engine.show_stats()}\n")
     else:
-        logger.info(f"{global_engine.game_count} games done, Stats: {global_engine.stats}\n")
+        logger.info(f"{global_engine.game_count} games done")
+        logger.info(f"{global_engine.show_stats()}")
     global_engine.get_action_from_keyboard()
     global_engine.tear_down(None, None)
