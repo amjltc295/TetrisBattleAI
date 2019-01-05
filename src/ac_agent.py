@@ -55,6 +55,7 @@ class AC(nn.Module):
         self.lin1 = nn.Linear(640, 64)
         self.Q_lin = nn.Linear(2*64, 1)
         self.V_lin = nn.Linear(64, 1)
+        self.current_actions = []
 
     def forward(self, x, placement):
         batch, _, _, _ = x.shape
@@ -69,6 +70,12 @@ class AC(nn.Module):
         Q = self.Q_lin(torch.cat([x, placement], dim=-1))
         V = self.V_lin(x)
         return Q, V
+
+    def get_action(self, engine, shape, anchor, board):
+        if len(self.current_actions) == 0:
+            _, _, self.current_actions = self.select_action(engine, board)
+        action = self.current_actions.pop(0)
+        return action
 
     def select_action(self, engine, state):
         action_final_location_map = engine.get_valid_final_states(engine.shape, engine.anchor, engine.board)
@@ -126,6 +133,15 @@ def load_checkpoint(model, filename, critic_opt=None, actor_opt=None):
     if actor_opt is not None:
         actor_opt.load_state_dict(checkpoint['actor_opt'])
     return checkpoint['epoch'], checkpoint['best_score']
+
+
+def setup_model(checkpoint='./tar/ac_best.pth.tar'):
+    model = AC()
+    if use_cuda:
+        model.cuda()
+    epoch, best_score = load_checkpoint(model, checkpoint)
+    model.train()
+    return model
 
 
 if __name__ == '__main__':
