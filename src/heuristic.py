@@ -2,11 +2,12 @@ def get_hole(state):
     width, height = state.shape
     n_hole = 0
     for x in range(width):
-        pre_occupied = True
-        for y in reversed(range(height)):
+        for y in reversed(range(height-1)):
+            if sum(state[:, y+1]) == 0:
+                continue
+            pre_occupied = (state[x, y+1] == 1)
             if not pre_occupied and state[x, y] == 1:
                 n_hole += 1
-            pre_occupied = state[x, y] == 1
     return n_hole
 
 
