@@ -6,22 +6,23 @@ import sys
 
 from engine import TetrisEngine
 from gui.gui import GUI
-import fixed_policy_agent
+from fixed_policy_agent import FixedPolicyAgent
 from genetic_policy_agent import GeneticPolicyAgent
+from random_agent import RandomActionAgent
 from logging_config import logger
 
 gen_agent = GeneticPolicyAgent()
+random_agent = RandomActionAgent()
+fixed_policy_agent = FixedPolicyAgent()
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-ww', '--width', type=int, default=10, help='Window width')
     parser.add_argument('-hh', '--height', type=int, default=16, help='Window height')
-    parser.add_argument('-p', '--player_num', type=int, default=2, help='Number of players')
     parser.add_argument('-n', '--game_num', type=int, default=10, help='Number of games')
     parser.add_argument('-kn', '--KO_num_to_win', type=int, default=5, help='Number of KO to win a game')
-    parser.add_argument('-k', '--use_keyboard', default=False, action='store_true',
-                        help='Use keyboard input (if not, use GA instead)')
+    parser.add_argument('-p', '--players', nargs='+', default=['g', 'f'], help='List of player type')
     parser.add_argument('-b', '--block_size', type=int, default=30, help='Set block size to enlarge GUI')
     parser.add_argument('-g', '--use_gui', type=int, default=0, help='Active output to gui')
     args = parser.parse_args()
@@ -30,13 +31,13 @@ def parse_args():
 
 class GlobalEngine:
     def __init__(
-        self, width, height, player_num, use_gui, use_keyboard,
+        self, width, height, use_gui, players,
         block_size,
         KO_num_to_win, game_num, game_time=120,
     ):
         self.width = width
         self.height = height
-        self.player_num = player_num
+        self.player_num = len(players)
         self.game_time = game_time
         self.KO_num_to_win = KO_num_to_win
         self.game_num = game_num
@@ -47,8 +48,7 @@ class GlobalEngine:
         self.use_gui = use_gui
         self.pause = False
 
-        self.use_keyboard = use_keyboard
-
+        self.use_keyboard = 'k' in players
         self.key_action_map = {
             ord('a'): "move_left",  # Shift left
             ord('d'): "move_right",  # Shift right
@@ -61,14 +61,17 @@ class GlobalEngine:
         self.engines = {}
         self.stats = {}
         self.players = {}
-        for i in range(player_num):
-            if i == 0:
-                if use_keyboard:
-                    self.players[i] = 'keyboard'
-                else:
-                    self.players[i] = 'genetic_policy_agent'
+        for i in range(len(players)):
+            if players[i] == 'k':
+                self.players[i] = self
+            elif players[i] == 'f':
+                self.players[i] = fixed_policy_agent
+            elif players[i] == 'r':
+                self.players[i] = random_agent
+            elif players[i] == 'g':
+                self.players[i] = gen_agent
             else:
-                self.players[i] = 'fixed_policy_agent'
+                raise NotImplementedError(f"{players}")
             self.stats[i] = {}
             self.stats[i]['win_times'] = 0
             self.stats[i]['total_sent_line'] = 0
@@ -143,28 +146,20 @@ class GlobalEngine:
                 max_score = score
         return winner, max_score
 
-    def get_action(self, engine_idx):
-        playert_type = self.players[engine_idx]
-        if playert_type == 'keyboard':
-            return self.get_action_from_keyboard()
-        elif playert_type == 'fixed_policy_agent':
-            return self.get_action_from_fixed_policy_agent(self.engines[engine_idx])
-        elif playert_type == 'genetic_policy_agent':
-            return self.get_action_from_genetic_policy_agent(self.engines[engine_idx])
-        else:
-            raise NotImplementedError(f"Player type {playert_type} not exists")
+    def get_action(self, engine, shape, anchor, board):
+        return self.get_action_from_keyboard()
 
-    def get_action_from_fixed_policy_agent(self, engine):
-        action = fixed_policy_agent.agent.get_action(
-            engine, engine.shape, engine.anchor, engine.board
-        )
-        return action
-
-    def get_action_from_genetic_policy_agent(self, engine):
-        action = gen_agent.get_action(
-            engine, engine.shape, engine.anchor, engine.board
-        )
-        return action
+    def get_player_action(self, engine_idx):
+        engine = self.engines[engine_idx]
+        try:
+            return self.players[engine_idx].get_action(
+                engine, engine.shape, engine.anchor, engine.board
+            )
+        except Exception as err:
+            logger.error(err)
+            import pdb
+            pdb.set_trace()
+            logger.error(err)
 
     def get_action_from_keyboard(self):
         def get_key():
@@ -229,7 +224,7 @@ class GlobalEngine:
     def update_engines(self):
         game_over = False
         for idx, engine in self.engines.items():
-            action = self.get_action(idx)
+            action = self.get_player_action(idx)
 
             # Game step
             state, reward, self.done, cleared_lines, sent_lines = engine.step(action)
@@ -279,8 +274,8 @@ class GlobalEngine:
 if __name__ == '__main__':
     args = parse_args()
     global_engine = GlobalEngine(
-        args.width, args.height, args.player_num,
-        args.use_gui, args.use_keyboard,
+        args.width, args.height,
+        args.use_gui, args.players,
         args.block_size,
         args.KO_num_to_win, args.game_num
     )
