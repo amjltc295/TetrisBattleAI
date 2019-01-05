@@ -4,10 +4,9 @@ import torch
 import ac_agent
 import numpy as np
 width, height = 10, 20  # standard tetris friends rules
-engine = TetrisEngine(width, height)
 
 
-def run():
+def run(engine):
     model = ac_agent.AC()
     use_cuda = torch.cuda.is_available()
     if use_cuda:
@@ -19,27 +18,30 @@ def run():
     time.sleep(2)
     score = 0
     state = engine.clear()
-    state, _, _, _ = engine.step('idle')
+    state, _, _, _, _ = engine.step('idle')
     while True:
         with torch.no_grad():
-            action_final_location_map = engine.get_valid_final_states(engine.shape, engine.anchor, engine.board)
-            act_pairs = [(k, v[2]) for k, v in action_final_location_map.items()]
-            act_prob, V = ac_agent.get_action_probability(model, state, act_pairs)
-            act_idx = int(np.random.choice(len(act_prob), 1, p=act_prob.cpu().detach().numpy()))
-            act, placement = act_pairs[act_idx]
-            state, reward, done, cleared_lines, sent_lines = engine.step_to_final(act)
+            _, _, actions = model.select_action(engine, state)
+            state, reward, done, cleared_lines, _ = engine.step_to_final(actions)
             # Accumulate reward
             score += int(cleared_lines)
 
             print(engine)
             print('reward : %.2f' % reward)
             print('score : %d' % score)
-            time.sleep(0.1)
+            # time.sleep(0.1)
 
             if done:
                 print('score {0}'.format(score))
                 break
+    return score
 
 
 if __name__ == '__main__':
-    run()
+    buf = []
+    for i in range(100):
+        engine = TetrisEngine(width, height)
+        s = run(engine)
+        print(i, s)
+        buf.append(s)
+    print('mean score %.2f, var : %.3d' % (np.mean(buf), np.var(buf)))

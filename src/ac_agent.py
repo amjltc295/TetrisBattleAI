@@ -70,6 +70,14 @@ class AC(nn.Module):
         V = self.V_lin(x)
         return Q, V
 
+    def select_action(self, engine, state):
+        action_final_location_map = engine.get_valid_final_states(engine.shape, engine.anchor, engine.board)
+        act_pairs = [(k, v[2], v[3]) for k, v in action_final_location_map.items()]
+        act_prob, V = get_action_probability(self, state, act_pairs)
+        act_idx = int(np.random.choice(len(act_prob), 1, p=act_prob.cpu().detach().numpy()))
+        actions_name, placement, actions = act_pairs[act_idx]
+        return actions_name, placement, actions
+
 
 GAMMA = 0.99
 
@@ -95,7 +103,7 @@ def discount_rewards(rewards):
 
 
 def get_action_probability(model, state, act_pairs):
-    placements = torch.cat([FloatTensor(v)[None, None, :, :] for k, v, actions in act_pairs], dim=0)
+    placements = torch.cat([FloatTensor(v)[None, None, :, :] for k, v, act in act_pairs], dim=0)
     states = FloatTensor(state)[None, None, :, :].repeat(len(act_pairs), 1, 1, 1)
     act_score, V = model(states, placements)
     act_score = act_score.flatten()
@@ -161,17 +169,17 @@ if __name__ == '__main__':
         V_list = []
         for t in count():
             # Select and perform an action
-            actions_name_final_location_map = engine.get_valid_final_states(engine.shape, engine.anchor, engine.board)
-            act_pairs = [(k, v[2], v[3]) for k, v in actions_name_final_location_map.items()]
+            action_final_location_map = engine.get_valid_final_states(engine.shape, engine.anchor, engine.board)
+            act_pairs = [(k, v[2]) for k, v in action_final_location_map.items()]
             act_prob, V = get_action_probability(model, state, act_pairs)
             act_idx = int(np.random.choice(len(act_prob), 1, p=act_prob.cpu().detach().numpy()))
             act_prob_list.append(act_prob[act_idx].unsqueeze(0))
             V_list.append(V.unsqueeze(0))
             entropy_loss += -entropy(act_prob)
-            actions_name, placement, actions = act_pairs[act_idx]
+            act, placement = act_pairs[act_idx]
 
             # Observations
-            state, reward, done, cleared_lines, sent_lines = engine.step_to_final(actions)
+            state, reward, done, cleared_lines = engine.step_to_final(act)
             # for training purpose
             reward = cleared_lines**2 if not done else -100
             # Accumulate reward
