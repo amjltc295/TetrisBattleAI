@@ -27,7 +27,7 @@ Transition = namedtuple('Transition',
 
 
 class CNN_lay(nn.Module):
-
+    """
     def __init__(self):
         super(CNN_lay, self).__init__()
         self.conv1 = nn.Conv2d(1, 16, kernel_size=5, stride=1, padding=2)
@@ -40,6 +40,25 @@ class CNN_lay(nn.Module):
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv_collapse(x))
         x = F.relu(self.conv5(x))
+        return x
+    """
+
+    def __init__(self):
+        super(CNN_lay, self).__init__()
+        self.conv1 = nn.Conv2d(1, 16, kernel_size=5, stride=1, padding=2)
+        self.bn1 = nn.BatchNorm2d(16)
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(32)
+        self.conv_collapse = nn.Conv2d(32, 64, kernel_size=(1, 20), stride=1)
+        self.bn4 = nn.BatchNorm2d(64)
+        self.conv5 = nn.Conv2d(64, 64, kernel_size=(3, 1), stride=1, padding=(1, 0))
+        self.bn5 = nn.BatchNorm2d(64)
+
+    def forward(self, x):
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = F.relu(self.bn4(self.conv_collapse(x)))
+        x = F.relu(self.bn5(self.conv5(x)))
         return x
 
 
@@ -117,10 +136,13 @@ def save_checkpoint(state, is_best, filename, best_name):
 def load_checkpoint(model, filename, critic_opt=None, actor_opt=None):
     checkpoint = torch.load(filename)
     model.load_state_dict(checkpoint['state_dict'])
+    # model.load_state_dict({k: v for k, v in checkpoint['state_dict'].items() if 'bn' not in k})
+    """
     if critic_opt is not None:
         critic_opt.load_state_dict(checkpoint['critic_opt'])
     if actor_opt is not None:
         actor_opt.load_state_dict(checkpoint['actor_opt'])
+    """
     return checkpoint['epoch'], checkpoint['best_score']
 
 
@@ -163,21 +185,39 @@ if __name__ == '__main__':
         entropy_loss = 0
         act_prob_list = []
         V_list = []
+        use_hold = True
         for t in count():
-            # Select and perform an action
-            action_final_location_map = engine.get_valid_final_states(engine.shape, engine.anchor, engine.board)
-            act_pairs = [(k, v[2], v[3]) for k, v in action_final_location_map.items()]
-            act_prob, V = get_action_probability(model, state, act_pairs)
-            act_idx = int(np.random.choice(len(act_prob), 1, p=act_prob.cpu().detach().numpy()))
-            act_prob_list.append(act_prob[act_idx].unsqueeze(0))
-            V_list.append(V.unsqueeze(0))
-            entropy_loss += -entropy(act_prob)
-            act, placement, actions = act_pairs[act_idx]
+            if np.random.random() > 1.:
+                with torch.no_grad():
+                    action_final_location_map = engine.get_valid_final_states(
+                            engine.shape, engine.anchor, engine.board, enable_hold=use_hold)
+                    act_pairs = [(k, v[2], v[3]) for k, v in action_final_location_map.items()]
+                    act_prob, V = get_action_probability(model, state, act_pairs)
+                    act_idx = int(np.random.choice(len(act_prob), 1, p=act_prob.cpu().detach().numpy()))
+                    act_prob_list.append(act_prob[act_idx].unsqueeze(0))
+                    V_list.append(V.unsqueeze(0))
+                    entropy_loss += -entropy(act_prob)
+                    act, placement, actions = act_pairs[act_idx]
+
+            else:
+                action_final_location_map = engine.get_valid_final_states(
+                        engine.shape, engine.anchor, engine.board, enable_hold=use_hold)
+                act_pairs = [(k, v[2], v[3]) for k, v in action_final_location_map.items()]
+                act_prob, V = get_action_probability(model, state, act_pairs)
+                act_idx = int(np.random.choice(len(act_prob), 1, p=act_prob.cpu().detach().numpy()))
+                act_prob_list.append(act_prob[act_idx].unsqueeze(0))
+                V_list.append(V.unsqueeze(0))
+                entropy_loss += -entropy(act_prob)
+                act, placement, actions = act_pairs[act_idx]
 
             # Observations
             state, reward, done, cleared_lines, sent_lines = engine.step_to_final(actions)
+            if t > 300:
+                done = True
             # for training purpose
-            reward = (sent_lines+1)**2 if not done else -100
+            # reward = 2*sent_lines**2 + 0.5*cleared_lines**2 if not done else -100
+            reward = sent_lines**2 if not done else -100
+            # reward = cleared_lines**2 if not done else -100
             # Accumulate reward
             score += cleared_lines
             rewards.append(reward)
