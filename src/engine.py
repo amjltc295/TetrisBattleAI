@@ -243,7 +243,7 @@ class TetrisEngine:
         self.total_sent_lines += sent_lines
         KOed = False
         game_over = False
-        if np.any(board_to_bool(self.board)[:, 0]):
+        if self.check_KO(self.board):
             self.board = self.set_piece(self.shape, self.anchor, self.board, True)
             if self.garbage_lines == 0:
                 game_over = True
@@ -334,7 +334,7 @@ class TetrisEngine:
 
         # Check additional garbage_lines cause KO
         game_over = False
-        if np.any(board_to_bool(new_board)[:, 0]):
+        if self.check_KO(new_board):
             if self.garbage_lines == 0:
                 game_over = True
             new_board = np.zeros_like(self.board)
@@ -420,3 +420,10 @@ class TetrisEngine:
         hard_dropped_board = self.set_piece(shape, anchor, self.board, True, -2)
         board = self.set_piece(self.shape, self.anchor, hard_dropped_board, True)
         return board
+
+    def check_KO(self, board):
+        for x in board[:, 0]:
+            if x != 0:
+                return True
+        else:
+            return False
