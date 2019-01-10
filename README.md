@@ -4,7 +4,7 @@ Final project for Introduction to Artificial Intellegence (2018 Fall), National 
 
 Make Tetris Great Again!
 
-![platform](doc/platform3.PNG)
+![platform](doc/platform6.PNG)
 
 ## Introduction
 
