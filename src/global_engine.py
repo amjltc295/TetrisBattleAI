@@ -16,7 +16,10 @@ def parse_args():
     parser.add_argument('-hh', '--height', type=int, default=16, help='Window height')
     parser.add_argument('-n', '--game_num', type=int, default=10, help='Number of games')
     parser.add_argument('-kn', '--KO_num_to_win', type=int, default=5, help='Number of KO to win a game')
-    parser.add_argument('-p', '--players', nargs='+', default=['g', 'f'], help='List of player type')
+    parser.add_argument(
+        '-p', '--players', nargs='+', default=['g', 'f'],
+        help='List of player type (k: keyboard, g: genetic algorithm, f: fixed-policy, a: actor-critic)'
+    )
     parser.add_argument('-b', '--block_size', type=int, default=30, help='Set block size to enlarge GUI')
     parser.add_argument('-g', '--use_gui', type=int, default=0, help='Active output to gui')
     args = parser.parse_args()

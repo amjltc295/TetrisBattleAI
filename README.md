@@ -8,14 +8,14 @@ Make Tetris Great Again!
 
 ## Introduction
 
-In this project, we build an platform for agents to play the Tetris Battle game.
+In this project, we build an platform for the **Tetris Battle** game based on [9, 10] and implement several agents to play against one another.
 
 The main difference between the 1-player Tetris and 2-player "Tetris Battle" is that in the 1-player mode, players only need to remove as more lines as possible,
-while in the 2-player mode, players need to get more "combos" (removing lines consecutively) in order to sent garbage lines to knock out (KO) its opponent.
+while in the 2-player mode, players need to get more **combos** (clearing lines consecutively) in order to sent garbage lines to knock out (KO) its opponent.
 
-This problem is harder than we though due to the extremely sparse rewards; random step-by-step actions could never get a line remove. We help agents get some possible final locations of each blocks and that them learn the strategies. 
+This problem is harder than we though due to the **extremely sparse rewards**; random step-by-step actions could never get a line remove. We help agents get some possible final locations of each blocks and that them learn the strategies. 
 
-Genetic algorithm (GA), DQN [10], policy gradient and actor-critic (AC) are implemented. Among them, GA and AC perform well; the AC player will never die in a 1-player game. While they may not beat the baseline [1] in terms of cleared lines, they have a higher chance to win compared to the baseline because they are more stable.
+**Genetic algorithm (GA), DQN [10], policy gradient and actor-critic (AC) are implemented.** Among them, GA and AC perform well; the AC player will never die in a 1-player game. While they may not beat the baseline [1] in terms of cleared lines, they have a higher chance to win compared to the baseline because they are more stable.
 
 Using rule-based methods [2] should achieve better results for now. However, our learning-based method could have the potential to find a better strategy and could be updated if the rule is changed (e.g., the garbage lines with bomb).
 
@@ -36,6 +36,48 @@ conda env create -f environment.yaml
 ```
 source activate AI_Intro_Final
 ```
+
+## Play the Game
+
+```
+$ cd src
+$ python global_engine.py -h
+pygame 1.9.4
+Hello from the pygame community. https://www.pygame.org/contribute.html
+usage: global_engine.py [-h] [-ww WIDTH] [-hh HEIGHT] [-n GAME_NUM]
+                        [-kn KO_NUM_TO_WIN] [-p PLAYERS [PLAYERS ...]]
+                        [-b BLOCK_SIZE] [-g USE_GUI]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -ww WIDTH, --width WIDTH
+                        Window width
+  -hh HEIGHT, --height HEIGHT
+                        Window height
+  -n GAME_NUM, --game_num GAME_NUM
+                        Number of games
+  -kn KO_NUM_TO_WIN, --KO_num_to_win KO_NUM_TO_WIN
+                        Number of KO to win a game
+  -p PLAYERS [PLAYERS ...], --players PLAYERS [PLAYERS ...]
+                        List of player type (k: keyboard, g: genetic
+                        algorithm, f: fixed-policy, a: actor-critic)
+  -b BLOCK_SIZE, --block_size BLOCK_SIZE
+                        Set block size to enlarge GUI
+  -g USE_GUI, --use_gui USE_GUI
+                        Active output to gui
+
+# Example: keyboard vs fixed-policy in the GUI mode
+$ python global_engine.py -g 1 -hh 20 -p k f
+
+# Keyboard input is faster using the command line mode
+```
+
+## Known Issues
+
+* No T-spin, B2B rules
+* Rotation may be limited whet the block is close to boundaries
+* When reached the top of the board, the blocks over the top might be removed
+* When recieved garbage lines, the blocks at the bottom might be disappeared
 
 ## Workflow
 
