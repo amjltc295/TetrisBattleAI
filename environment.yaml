@@ -1,64 +1,42 @@
-name: AI_Intro_final
+name: AI_Intro_Final
 channels:
-  - pytorch
+  - conda-forge
   - defaults
 dependencies:
-  - absl-py=0.6.1=py36_0
-  - astor=0.7.1=py36_0
+  - bzip2=1.0.6=h470a237_2
+  - ca-certificates=2018.11.29=ha4d7672_0
+  - certifi=2018.11.29=py37_1000
+  - coloredlogs=10.0=py37_1000
+  - humanfriendly=4.16.1=py_0
+  - libgfortran=3.0.0=1
+  - libgfortran-ng=7.2.0=hdf63c60_3
+  - openblas=0.3.3=ha44fe06_1
+  - openssl=1.0.2p=h470a237_1
+  - python=3.7.1=h5001a0f_0
   - blas=1.0=mkl
-  - c-ares=1.15.0=h7b6447c_1
-  - ca-certificates=2018.03.07=0
-  - certifi=2018.10.15=py36_0
-  - cffi=1.11.5=py36he75722e_1
-  - click=7.0=py36_0
-  - configargparse=0.13.0=py36_0
-  - dill=0.2.8.2=py36_0
-  - gast=0.2.0=py36_0
-  - grpcio=1.16.1=py36hf8bcb03_1
-  - h5py=2.8.0=py36h989c5e5_3
-  - hdf5=1.10.2=hba1933b_1
+  - flake8=3.6.0=py37_0
   - intel-openmp=2019.1=144
-  - keras-applications=1.0.6=py36_0
-  - keras-preprocessing=1.0.5=py36_0
   - libedit=3.1.20170329=h6b74fdf_2
   - libffi=3.2.1=hd88cf55_4
   - libgcc-ng=8.2.0=hdf63c60_1
-  - libgfortran-ng=7.3.0=hdf63c60_0
-  - libprotobuf=3.6.1=hd408876_0
   - libstdcxx-ng=8.2.0=hdf63c60_1
-  - markdown=3.0.1=py36_0
+  - mccabe=0.6.1=py37_1
   - mkl=2018.0.3=1
-  - mkl_fft=1.0.6=py36h7dd41cf_0
-  - mkl_random=1.0.1=py36h4414c95_1
-  - ncurses=6.1=hf484d3e_0
-  - ninja=1.8.2=py36h6bb024c_1
-  - nltk=3.3.0=py36_0
-  - numpy=1.15.4=py36h1d66e8a_0
-  - numpy-base=1.15.4=py36h81de0dd_0
-  - openssl=1.1.1a=h7b6447c_0
-  - pip=18.1=py36_0
-  - protobuf=3.6.1=py36he6710b0_0
-  - pycparser=2.19=py36_0
-  - python=3.6.7=h0371630_0
+  - mkl_fft=1.0.6=py37h7dd41cf_0
+  - mkl_random=1.0.1=py37h4414c95_1
+  - ncurses=6.1=he6710b0_1
+  - numpy=1.15.4=py37h1d66e8a_0
+  - numpy-base=1.15.4=py37h81de0dd_0
+  - pip=18.1=py37_0
+  - pycodestyle=2.4.0=py37_0
+  - pyflakes=2.0.0=py37_0
   - readline=7.0=h7b6447c_5
-  - scipy=1.1.0=py36hfa4b5c9_1
-  - setuptools=40.6.2=py36_0
-  - six=1.11.0=py36_1
+  - setuptools=40.6.2=py37_0
   - sqlite=3.25.3=h7b6447c_0
-  - tensorboard=1.12.0=py36hf484d3e_0
-  - termcolor=1.1.0=py36_1
   - tk=8.6.8=hbc83047_0
-  - werkzeug=0.14.1=py36_0
-  - wheel=0.32.3=py36_0
+  - wheel=0.32.3=py37_0
   - xz=5.2.4=h14c3975_4
-  - zlib=1.2.11=ha838bed_2
-  - pytorch=0.4.1=py36_py35_py27__9.0.176_7.1.2_2
+  - zlib=1.2.11=h7b6447c_3
   - pip:
-    - chardet==3.0.4
-    - idna==2.7
     - pygame==1.9.4
-    - requests==2.20.1
-    - torch==0.4.1.post2
-    - torchtext==0.3.1
-    - tqdm==4.28.1
-    - urllib3==1.24.1
+    - torch==1.0.0
