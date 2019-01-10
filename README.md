@@ -6,6 +6,11 @@ Make Tetris Great Again!
 
 ![platform](doc/platform6.PNG)
 
+[Video Demo - Human VS Fixed-policy](https://youtu.be/kA84HhI7Rrk)
+
+[Video Demo - Our GA VS Fixed-policy](https://youtu.be/PWYOPw07RgU)
+
+
 ## Introduction
 
 In this project, we build an platform for the **Tetris Battle** game based on [9, 10] and implement several agents to play against one another.
