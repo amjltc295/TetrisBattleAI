@@ -143,8 +143,13 @@ class GUI:
         )
 
         # Draw texts
+        player_type = (
+            'Keyboard'
+            if 'Agent' not in self.global_state.players[player_id].__class__.__name__
+            else self.global_state.players[player_id].__class__.__name__
+        )
         text_player = UIVariables.h3.render(
-            f"P{player_id+1}: {self.global_state.players[player_id]}", 1, UIVariables.black)
+            f"P{player_id+1}: {player_type}", 1, UIVariables.black)
         text_hold = UIVariables.h5.render("HOLD", 1, UIVariables.black)
         text_next = UIVariables.h5.render("NEXT", 1, UIVariables.black)
 
